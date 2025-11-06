@@ -1,4 +1,5 @@
 import { Button, Card, Col, Row, Space, Typography } from 'antd'
+import { SupabaseConnectionTest } from '../../../components/SupabaseConnectionTest'
 
 const { Title, Paragraph, Text } = Typography
 
@@ -41,6 +42,9 @@ const HomePage = () => {
               <Text>3. 完成地图与语音模块前端集成</Text>
             </Space>
           </Card>
+        </Col>
+        <Col span={24}>
+          <SupabaseConnectionTest />
         </Col>
       </Row>
     </div>
