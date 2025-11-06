@@ -39,7 +39,15 @@
 | `expenses` | 费用记录 | `id`, `trip_id`, `category`, `amount`, `currency`, `note`, `incurred_at`, `created_by` |
 | `voice_transcripts` (可选) | 语音识别结果缓存 | `id`, `trip_id`, `content`, `transcribed_at`, `raw_metadata` |
 
+> 初始迁移脚本：`supabase/migrations/20251106T000000_initial_schema.sql`
+
 所有表通过 RLS （Row Level Security）限制访问，仅允许拥有者或共享用户访问。
+
+### RLS 策略概览
+- `profiles`：仅本人可读写。
+- `trips`：所有者/协作者可读，所有者可写删；协作者信息存储在 `trip_members`。
+- `trip_days`、`trip_activities`、`expenses`、`voice_transcripts`：依赖 `user_can_access_trip(trip_id)` 统一鉴权。
+- 默认授予 `authenticated` 角色基础读写权限，结合 RLS 控制行级访问。
 
 ## 4. Secrets 管理策略
 - **本地开发**：

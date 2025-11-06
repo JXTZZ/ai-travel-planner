@@ -17,10 +17,12 @@
 cd apps/web
 npm install
 
-# 本地开发
+# 本地开发预览
 npm run dev
-```
 
+# 构建生产包
+npm run build
+```
 ### 环境变量
 请将密钥配置到本地 `.env` 文件中，严禁提交真实密钥到版本库。
 
@@ -61,8 +63,8 @@ ai-travel-planner/
 ```
 
 ## 下一步
-- [ ] 初始化前端路由、全局样式、UI 框架
-- [ ] 集成 Supabase Auth、数据库 schema
-- [ ] 搭建 Edge Functions（行程规划、语音签名等）
+- [x] 初始化前端路由、全局样式、UI 框架
+- [x] 集成 Supabase 初始 schema（迁移脚本与 RLS）
+- [x] 搭建 Edge Functions 基础骨架（行程规划、语音签名、预算聚合）
 - [ ] 构建地图、语音、预算模块
 - [ ] 配置 Docker & GitHub Actions 部署流程
