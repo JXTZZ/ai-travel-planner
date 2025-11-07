@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-type BudgetSummary = {
+export type BudgetSummary = {
   tripId: string
   planned: number
   spent: number

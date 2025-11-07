@@ -26,9 +26,10 @@ export const SupabaseConnectionTest = () => {
       }
       
       setConnected(true)
-    } catch (err: any) {
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error'
       setConnected(false)
-      setError(err.message || 'Unknown error')
+      setError(message)
     } finally {
       setLoading(false)
     }
