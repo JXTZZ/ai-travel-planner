@@ -27,30 +27,46 @@ npm run build
 请将密钥配置到本地 `.env` 文件中，严禁提交真实密钥到版本库。
 
 ```bash
-# 根目录 .env（示例）
+# 根目录 .env（示例，供 Supabase CLI / Edge Functions 使用）
 SUPABASE_URL=...
 SUPABASE_SERVICE_ROLE_KEY=...
 DEEPSEEK_API_KEY=...
+IFLYTEK_APP_ID=...
 IFLYTEK_API_KEY=...
 IFLYTEK_API_SECRET=...
 AMAP_REST_API_KEY=...
 ```
 
 ```bash
-# apps/web/.env.local
+# apps/web/.env.local（前端开发环境变量，供浏览器使用）
+VITE_APP_NAME=LoTus'AI assistant
 VITE_SUPABASE_URL=...
 VITE_SUPABASE_ANON_KEY=...
 VITE_AMAP_WEB_KEY=...
+VITE_IFLYTEK_APP_ID=...
+VITE_IFLYTEK_API_KEY=...
+VITE_IFLYTEK_API_SECRET=...
 ```
 
-> `.env`、`.env.local` 已被 `.gitignore` 忽略。
+> `.env`、`.env.local` 已被 `.gitignore` 忽略，提交前请再次确认未包含真实密钥。
 
 ### Supabase Edge Functions 密钥
-本地调试 Edge Functions 时可以在 `supabase/.env` 中配置，线上部署请使用：
+本地调试 Edge Functions 时可以在 `supabase/.env` 中临时设置，线上部署请使用 `supabase secrets set`：
 
 ```bash
-supabase secrets set DEEPSEEK_API_KEY=... IFLYTEK_API_SECRET=... --project-ref <project-ref>
+supabase secrets set \
+  SUPABASE_SERVICE_ROLE_KEY=... \
+  DEEPSEEK_API_KEY=... \
+  IFLYTEK_APP_ID=... \
+  IFLYTEK_API_KEY=... \
+  IFLYTEK_API_SECRET=... \
+  AMAP_REST_API_KEY=... \
+  --project-ref <project-ref>
 ```
+
+- `VITE_AMAP_WEB_KEY`：前端加载地图使用的 JS API Key（低权限，可暴露）。
+- `AMAP_REST_API_KEY`：Edge Function / 服务端调用高德 Web 服务使用的密钥，请勿在前端暴露。
+- 科大讯飞凭证需保持三项配套（AppID、APIKey、APISecret），确保 Edge Function 能正确生成签名。
 
 ## 代码结构
 ```

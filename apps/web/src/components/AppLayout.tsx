@@ -2,6 +2,7 @@ import {
   CalendarOutlined,
   CompassOutlined,
   DatabaseOutlined,
+  EnvironmentOutlined,
   HomeOutlined,
   SettingOutlined,
   SoundOutlined,
@@ -23,6 +24,7 @@ type NavItem = {
 const navItems: NavItem[] = [
   { key: '/', icon: <HomeOutlined />, label: '总览' },
   { key: '/planner', icon: <CompassOutlined />, label: '智能规划' },
+  { key: '/map', icon: <EnvironmentOutlined />, label: '地图探索' },
   { key: '/budget', icon: <DatabaseOutlined />, label: '预算管理' },
   { key: '/voice', icon: <SoundOutlined />, label: '语音助手' },
   { key: '/calendar', icon: <CalendarOutlined />, label: '日历视图' },

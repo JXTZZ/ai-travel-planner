@@ -15,4 +15,7 @@ export default defineConfig({
       ],
     }),
   ],
+  build: {
+    chunkSizeWarningLimit: 1500, // 调整警告阈值为 1500KB (1.5MB)
+  },
 })
