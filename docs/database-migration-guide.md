@@ -1,3 +1,27 @@
+# Supabase 数据库迁移指南
+
+## 问题诊断
+
+当前遇到的问题：
+- ✅ 迁移文件已存在：`supabase/migrations/20251106120000_initial_schema.sql`
+- ✅ Supabase 项目已创建：`zhugdvqgkqpmxhixtqaj`
+- ❌ CLI 无法连接到数据库（网络超时或防火墙问题）
+
+## 解决方案：通过 Dashboard 手动应用迁移
+
+### 步骤 1：访问 Supabase SQL Editor
+
+1. 打开浏览器，访问：https://supabase.com/dashboard/project/zhugdvqgkqpmxhixtqaj
+2. 登录您的 Supabase 账户
+3. 在左侧菜单点击 **SQL Editor**
+
+### 步骤 2：执行迁移 SQL
+
+1. 点击 **+ New query** 创建新查询
+2. 复制以下完整 SQL 内容并粘贴到编辑器中
+3. 点击 **Run** 按钮执行
+
+```sql
 -- Schema initialization for LoTus'AI assistant
 -- Generates core tables and Row Level Security policies.
 
@@ -222,3 +246,71 @@ with check (user_can_access_trip(trip_id));
 -- Ensure future tables inherit grants
 alter default privileges in schema public grant select, insert, update on tables to authenticated;
 alter default privileges in schema public grant usage, select on sequences to authenticated;
+```
+
+### 步骤 3：验证表创建
+
+执行后，您应该看到 "Success. No rows returned" 消息。然后：
+
+1. 在左侧菜单点击 **Table Editor**
+2. 确认以下表已创建：
+   - ✅ profiles
+   - ✅ trips
+   - ✅ trip_members
+   - ✅ trip_days
+   - ✅ trip_activities
+   - ✅ expenses
+   - ✅ voice_transcripts
+
+### 步骤 4：配置 Auth 设置
+
+1. 在左侧菜单点击 **Authentication** → **Providers**
+2. 确保 **Email** 提供商已启用
+3. 在 **Configuration** 中：
+   - ✅ Enable email signups: 开启
+   - ✅ Confirm email: 关闭（开发阶段）
+
+### 步骤 5：测试注册登录
+
+现在回到应用进行测试：
+
+```powershell
+cd d:\nju-work\ai-travel-planner\apps\web
+npm run dev
+```
+
+访问 http://localhost:5173，尝试：
+1. 注册新用户
+2. 登录
+3. 创建行程
+4. 添加费用
+
+## 为什么 CLI 连接失败？
+
+可能的原因：
+1. **网络限制**：防火墙阻止了 5432 端口
+2. **IP 白名单**：Supabase 项目可能限制了访问 IP
+3. **VPN/代理**：网络代理导致连接超时
+4. **DNS 解析**：无法解析 pooler.supabase.com 域名
+
+## 替代方案：使用 Database URL
+
+如果需要使用 CLI，可以尝试：
+
+1. 在 Supabase Dashboard → Settings → Database
+2. 复制 **Connection string** (URI)
+3. 使用直连方式：
+
+```bash
+npx supabase db push --db-url "postgresql://postgres:[YOUR-PASSWORD]@db.zhugdvqgkqpmxhixtqaj.supabase.co:5432/postgres"
+```
+
+但目前最可靠的方式是**通过 Dashboard 手动执行 SQL**。
+
+## 后续步骤
+
+表创建完成后：
+1. ✅ 测试用户注册登录
+2. ✅ 验证数据写入（创建行程、添加费用）
+3. ✅ 检查 RLS 策略是否正常工作
+4. 如需修改 schema，继续在 SQL Editor 中执行

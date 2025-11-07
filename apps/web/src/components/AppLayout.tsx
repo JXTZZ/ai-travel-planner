@@ -4,13 +4,16 @@ import {
   DatabaseOutlined,
   EnvironmentOutlined,
   HomeOutlined,
+  LogoutOutlined,
   SettingOutlined,
   SoundOutlined,
+  UserOutlined,
 } from '@ant-design/icons'
-import { Avatar, Badge, Layout, Menu, Typography } from 'antd'
+import { Avatar, Badge, Dropdown, Layout, Menu, message, Typography } from 'antd'
 import type { MenuProps } from 'antd'
 import { useMemo, useState, type ReactNode } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 
 const { Header, Sider, Content } = Layout
 const { Text } = Typography
@@ -38,6 +41,7 @@ export const AppLayout = () => {
   const [collapsed, setCollapsed] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
+  const { user, signOut } = useAuth()
 
   const selectedKey = useMemo(() => {
     const match = navItems.find((item) =>
@@ -49,6 +53,34 @@ export const AppLayout = () => {
   const handleMenuClick: MenuProps['onClick'] = ({ key }) => {
     navigate(key)
   }
+
+  const handleSignOut = async () => {
+    const { error } = await signOut()
+    if (error) {
+      message.error('退出失败')
+    } else {
+      message.success('已退出登录')
+      navigate('/auth')
+    }
+  }
+
+  const userMenuItems: MenuProps['items'] = [
+    {
+      key: 'profile',
+      icon: <UserOutlined />,
+      label: user?.email ?? '用户',
+      disabled: true,
+    },
+    {
+      type: 'divider',
+    },
+    {
+      key: 'signout',
+      icon: <LogoutOutlined />,
+      label: '退出登录',
+      onClick: handleSignOut,
+    },
+  ]
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -82,9 +114,13 @@ export const AppLayout = () => {
           }}
         >
           <Text strong>LoTus&apos;AI assistant</Text>
-          <Badge dot color="green">
-            <Avatar>LT</Avatar>
-          </Badge>
+          <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
+            <Badge dot color="green">
+              <Avatar icon={<UserOutlined />} style={{ cursor: 'pointer' }}>
+                {user?.email?.charAt(0).toUpperCase()}
+              </Avatar>
+            </Badge>
+          </Dropdown>
         </Header>
         <Content style={{ margin: 0 }}>
           <Outlet />

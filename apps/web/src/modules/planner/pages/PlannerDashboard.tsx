@@ -1,10 +1,13 @@
 import { Alert, Button, Card, Col, Empty, List, Row, Space, Typography } from 'antd'
+import { PlusOutlined } from '@ant-design/icons'
+import { useNavigate } from 'react-router-dom'
 import { useTripsQuery } from '../../../hooks/useTripsQuery'
 import { useTripStore } from '../../../state/useTripStore'
 
 const { Title, Paragraph, Text } = Typography
 
 const PlannerDashboard = () => {
+  const navigate = useNavigate()
   const { data: trips, isLoading, isError, error, refetch } = useTripsQuery()
   const upsertTrip = useTripStore((state) => state.upsertTrip)
 
@@ -14,28 +17,30 @@ const PlannerDashboard = () => {
       id: draftId,
       title: '新的行程草稿',
     })
+    navigate(`/planner/${draftId}`)
+  }
+
+  const handleViewTrip = (tripId: string) => {
+    navigate(`/planner/${tripId}`)
   }
 
   return (
     <div className="page-container">
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
-        <Title level={3}>行程规划中心</Title>
-        <Paragraph type="secondary">
-          在这里通过文字或语音描述旅行需求，AI 将生成路线建议、交通方案与住宿推荐。
-        </Paragraph>
+        <Row justify="space-between" align="middle">
+          <div>
+            <Title level={3}>行程规划中心</Title>
+            <Paragraph type="secondary">
+              在这里通过文字或语音描述旅行需求，AI 将生成路线建议、交通方案与住宿推荐。
+            </Paragraph>
+          </div>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateDraft} size="large">
+            创建新行程
+          </Button>
+        </Row>
         <Row gutter={[16, 16]}>
-          <Col span={12}>
-            <Card title="创建新行程" bordered={false}>
-              <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-                <Text>即将接入 DeepSeek 生成行程逻辑，支持多轮偏好细化。</Text>
-                <Button type="primary" onClick={handleCreateDraft}>
-                  新建空白草稿
-                </Button>
-              </Space>
-            </Card>
-          </Col>
-          <Col span={12}>
-            <Card title="最近的行程草稿" bordered={false}>
+          <Col span={24}>
+            <Card title="我的行程" bordered={false}>
               {isError ? (
                 <Alert
                   type="error"
@@ -52,9 +57,15 @@ const PlannerDashboard = () => {
                 <List
                   dataSource={trips ?? []}
                   loading={isLoading}
-                  locale={{ emptyText: <Empty description="暂无行程" /> }}
+                  locale={{ emptyText: <Empty description="暂无行程，点击上方按钮创建" /> }}
                   renderItem={(item) => (
-                    <List.Item>
+                    <List.Item
+                      actions={[
+                        <Button type="link" onClick={() => handleViewTrip(item.id)} key="view">
+                          查看详情
+                        </Button>,
+                      ]}
+                    >
                       <Space direction="vertical" size={0} style={{ width: '100%' }}>
                         <Text strong>{item.title}</Text>
                         <Text type="secondary">

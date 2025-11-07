@@ -1,4 +1,194 @@
--- Schema initialization for LoTus'AI assistant
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase 迁移 SQL 复制工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        .content {
+            padding: 40px;
+        }
+        .steps {
+            margin-bottom: 40px;
+        }
+        .step {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+        }
+        .step h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 20px;
+        }
+        .step ol {
+            margin-left: 20px;
+            line-height: 1.8;
+        }
+        .step a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .step a:hover {
+            text-decoration: underline;
+        }
+        .sql-container {
+            background: #282c34;
+            border-radius: 12px;
+            padding: 20px;
+            position: relative;
+        }
+        .sql-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .sql-title {
+            color: #61dafb;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .copy-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .copy-btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        .copy-btn.copied {
+            background: #10b981;
+        }
+        textarea {
+            width: 100%;
+            min-height: 400px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border: none;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            padding: 15px;
+            border-radius: 8px;
+            resize: vertical;
+        }
+        textarea:focus {
+            outline: 2px solid #667eea;
+        }
+        .warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .warning strong {
+            color: #856404;
+            display: block;
+            margin-bottom: 8px;
+        }
+        .success {
+            background: #d1f2eb;
+            border-left: 4px solid #10b981;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .success strong {
+            color: #0c5e43;
+            display: block;
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Supabase 数据库迁移工具</h1>
+            <p>由于网络限制，请通过 Dashboard 手动执行 SQL</p>
+        </div>
+        
+        <div class="content">
+            <div class="steps">
+                <div class="step">
+                    <h3>📝 步骤 1：访问 SQL Editor</h3>
+                    <ol>
+                        <li>点击链接打开：<a href="https://supabase.com/dashboard/project/zhugdvqgkqpmxhixtqaj/editor" target="_blank">Supabase SQL Editor</a></li>
+                        <li>登录您的 Supabase 账户</li>
+                        <li>点击 <strong>+ New query</strong> 创建新查询</li>
+                    </ol>
+                </div>
+                
+                <div class="step">
+                    <h3>📋 步骤 2：复制下方 SQL</h3>
+                    <ol>
+                        <li>点击下方 <strong>"复制 SQL"</strong> 按钮</li>
+                        <li>将 SQL 粘贴到 Supabase SQL Editor 中</li>
+                        <li>点击 <strong>Run</strong> 按钮执行</li>
+                    </ol>
+                </div>
+                
+                <div class="step">
+                    <h3>✅ 步骤 3：验证表创建</h3>
+                    <ol>
+                        <li>执行成功后，访问 <a href="https://supabase.com/dashboard/project/zhugdvqgkqpmxhixtqaj/editor" target="_blank">Table Editor</a></li>
+                        <li>确认 7 个表已创建：profiles, trips, trip_members, trip_days, trip_activities, expenses, voice_transcripts</li>
+                        <li>返回应用测试注册登录功能</li>
+                    </ol>
+                </div>
+            </div>
+
+            <div class="sql-container">
+                <div class="sql-header">
+                    <div class="sql-title">📄 initial_schema.sql</div>
+                    <button class="copy-btn" onclick="copySql()">📋 复制 SQL</button>
+                </div>
+                <textarea id="sqlContent" readonly>-- Schema initialization for LoTus'AI assistant
 -- Generates core tables and Row Level Security policies.
 
 set search_path = public;
@@ -256,4 +446,37 @@ for insert with check (user_can_access_trip(trip_id));
 
 -- Ensure future tables inherit grants
 alter default privileges in schema public grant select, insert, update on tables to authenticated;
-alter default privileges in schema public grant usage, select on sequences to authenticated;
+alter default privileges in schema public grant usage, select on sequences to authenticated;</textarea>
+            </div>
+
+            <div class="warning">
+                <strong>⚠️ 网络问题说明</strong>
+                由于防火墙或网络限制，Supabase CLI 无法连接到数据库。这是正常现象，通过 Dashboard 手动执行 SQL 同样有效且更可靠。
+            </div>
+
+            <div class="success">
+                <strong>✅ 执行成功后</strong>
+                返回终端运行：<code>cd d:\nju-work\ai-travel-planner\apps\web && npm run dev</code><br>
+                访问 http://localhost:5173 测试注册登录功能
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function copySql() {
+            const textarea = document.getElementById('sqlContent');
+            textarea.select();
+            document.execCommand('copy');
+            
+            const btn = document.querySelector('.copy-btn');
+            btn.textContent = '✅ 已复制!';
+            btn.classList.add('copied');
+            
+            setTimeout(() => {
+                btn.textContent = '📋 复制 SQL';
+                btn.classList.remove('copied');
+            }, 2000);
+        }
+    </script>
+</body>
+</html>
