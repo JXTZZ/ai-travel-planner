@@ -21,8 +21,8 @@ const AuthDebugPage = () => {
       } else {
         setConnectionTest('✅ 数据库连接正常')
       }
-    } catch (err: any) {
-      setConnectionTest(`❌ 连接异常: ${err.message}`)
+    } catch (err) {
+      setConnectionTest(`❌ 连接异常: ${err instanceof Error ? err.message : String(err)}`)
     }
   }
 
