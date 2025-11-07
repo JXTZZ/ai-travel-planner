@@ -7,6 +7,7 @@ import { AppLayout } from '../components/AppLayout'
 const HomePage = lazy(() => import('../modules/home/pages/HomePage'))
 const AuthPage = lazy(() => import('../modules/auth/pages/AuthPage'))
 const AuthDebugPage = lazy(() => import('../pages/AuthDebugPage'))
+const TripDebugPage = lazy(() => import('../pages/TripDebugPage'))
 const PlannerDashboard = lazy(() => import('../modules/planner/pages/PlannerDashboard'))
 const TripDetailPage = lazy(() => import('../modules/planner/pages/TripDetailPage'))
 const BudgetPage = lazy(() => import('../modules/budget/pages/BudgetPage'))
@@ -43,6 +44,10 @@ const routes: RouteObject[] = [
   {
     path: '/debug',
     element: withSuspense(<AuthDebugPage />),
+  },
+  {
+    path: '/trip-debug',
+    element: withSuspense(<TripDebugPage />),
   },
   {
     path: '/',

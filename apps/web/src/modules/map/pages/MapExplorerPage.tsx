@@ -14,18 +14,12 @@ type MapInstance = InstanceType<AMapModule['Map']>
 type GeocoderInstance = InstanceType<AMapModule['Geocoder']>
 type MarkerInstance = InstanceType<AMapModule['Marker']>
 
-type GeocodeResult = {
-  geocodes: Array<{
-    location: {
-      getLng: () => number
-      getLat: () => number
+declare global {
+  interface Window {
+    _AMapSecurityConfig?: {
+      securityJsCode: string
     }
-  }>
-}
-
-const isGeocodeResult = (value: unknown): value is GeocodeResult => {
-  if (typeof value !== 'object' || !value) return false
-  return Array.isArray((value as GeocodeResult).geocodes)
+  }
 }
 
 const MapExplorerPage = () => {
@@ -42,6 +36,8 @@ const MapExplorerPage = () => {
   const [message, setMessage] = useState<string | null>(null)
 
   const apiKey = useMemo(() => import.meta.env.VITE_AMAP_WEB_KEY, [])
+  const securityJsCode = useMemo(() => import.meta.env.VITE_AMAP_SECURITY_JS_CODE, [])
+  const restApiKey = useMemo(() => import.meta.env.VITE_AMAP_REST_KEY, [])
 
   useEffect(() => {
     let destroyed = false
@@ -61,10 +57,14 @@ const MapExplorerPage = () => {
       }
 
       try {
+        if (securityJsCode) {
+          window._AMapSecurityConfig = { securityJsCode }
+        }
+
         const AMap = await AMapLoader.load({
           key: apiKey,
           version: '2.0',
-          plugins: ['AMap.Scale', 'AMap.ToolBar', 'AMap.Geocoder'],
+          plugins: ['AMap.Scale', 'AMap.ToolBar', 'AMap.Geocoder', 'AMap.Geolocation'],
         })
 
         if (destroyed) return
@@ -73,14 +73,22 @@ const MapExplorerPage = () => {
           viewMode: '3D',
           zoom: 5,
           center: DEFAULT_CENTER,
+          resizeEnable: true,
         })
 
         map.addControl(new AMap.Scale())
         map.addControl(new AMap.ToolBar())
 
+        // 创建地理编码服务实例
+        const geocoder = new AMap.Geocoder({
+          city: '全国', // 设置城市范围为全国
+        })
+
         mapRef.current = map
-        geocoderRef.current = new AMap.Geocoder()
+        geocoderRef.current = geocoder
         amapRef.current = AMap
+        
+        console.log('[map] initialization complete', { map, geocoder })
       } catch (error) {
         console.error('[map] init failed', error)
         if (!destroyed) {
@@ -102,7 +110,7 @@ const MapExplorerPage = () => {
       mapRef.current?.destroy()
       mapRef.current = null
     }
-  }, [apiKey])
+  }, [apiKey, securityJsCode])
 
   const createOrUpdateMarker = useCallback(
     (key: string, position: [number, number]) => {
@@ -130,49 +138,172 @@ const MapExplorerPage = () => {
     [],
   )
 
-  const geocode = useCallback(
-    async (keyword: string) => {
+  const geocodeWithPlugin = useCallback(
+    (keyword: string) => {
       const geocoder = geocoderRef.current
       const map = mapRef.current
       if (!map || !geocoder) {
-        throw new Error('地图尚未初始化完成')
+        return Promise.reject(new Error('地图尚未初始化完成'))
       }
 
+      console.log('[geocode] starting geocode via plugin for:', keyword)
+
       return new Promise<MarkerInstance | null>((resolve, reject) => {
-        geocoder.getLocation(keyword, (status: 'complete' | 'error' | 'no_data', result: unknown) => {
-          if (status === 'complete' && isGeocodeResult(result) && result.geocodes.length > 0) {
-            const location = result.geocodes[0].location
-            const marker = createOrUpdateMarker(keyword, [location.getLng(), location.getLat()])
-            resolve(marker)
-          } else if (status === 'no_data') {
-            resolve(null)
-          } else {
-            reject(new Error('地理编码失败，请稍后重试'))
-          }
-        })
+        const timeoutId = window.setTimeout(() => {
+          console.error('[geocode] plugin timeout after 8 seconds')
+          reject(new Error('地理编码插件超时'))
+        }, 8000)
+
+        try {
+          geocoder.getLocation(keyword, (status: string, result: any) => {
+            clearTimeout(timeoutId)
+            console.log('[geocode] plugin callback - status:', status, 'result:', result)
+
+            try {
+              if (status === 'complete' && result && Array.isArray(result.geocodes) && result.geocodes.length > 0) {
+                const location = result.geocodes[0].location
+
+                let lng: number
+                let lat: number
+
+                if (typeof location?.getLng === 'function' && typeof location?.getLat === 'function') {
+                  lng = location.getLng()
+                  lat = location.getLat()
+                } else if (typeof location?.lng === 'number' && typeof location?.lat === 'number') {
+                  lng = location.lng
+                  lat = location.lat
+                } else if (Array.isArray(location) && location.length >= 2) {
+                  lng = Number(location[0])
+                  lat = Number(location[1])
+                } else {
+                  console.error('[geocode] unknown plugin location format:', location)
+                  reject(new Error('地理编码插件返回的坐标格式无法识别'))
+                  return
+                }
+
+                if (Number.isNaN(lng) || Number.isNaN(lat)) {
+                  reject(new Error('地理编码插件返回的坐标无效'))
+                  return
+                }
+
+                const marker = createOrUpdateMarker(keyword, [lng, lat])
+                resolve(marker)
+              } else if (status === 'no_data') {
+                resolve(null)
+              } else {
+                reject(new Error(`地理编码失败：${status}`))
+              }
+            } catch (error) {
+              reject(error instanceof Error ? error : new Error(String(error)))
+            }
+          })
+        } catch (error) {
+          clearTimeout(timeoutId)
+          reject(error instanceof Error ? error : new Error(String(error)))
+        }
       })
     },
     [createOrUpdateMarker],
   )
 
+  const geocodeWithRest = useCallback(
+    async (keyword: string) => {
+      if (!restApiKey) {
+        throw new Error('缺少 REST API Key，无法进行兜底地理编码')
+      }
+
+      const url = `https://restapi.amap.com/v3/geocode/geo?key=${restApiKey}&address=${encodeURIComponent(keyword)}`
+      console.log('[geocode] fallback REST request:', url)
+
+      const response = await fetch(url)
+      if (!response.ok) {
+        throw new Error(`REST 接口请求失败：${response.status}`)
+      }
+
+      const data = await response.json()
+      console.log('[geocode] REST response:', data)
+
+      if (data.status !== '1' || !Array.isArray(data.geocodes) || data.geocodes.length === 0) {
+        return null
+      }
+
+      const locationStr: string | undefined = data.geocodes[0]?.location
+      if (!locationStr) {
+        return null
+      }
+
+      const [lngStr, latStr] = locationStr.split(',')
+      const lng = Number(lngStr)
+      const lat = Number(latStr)
+
+      if (Number.isNaN(lng) || Number.isNaN(lat)) {
+        throw new Error('REST 接口返回的坐标无效')
+      }
+
+      return createOrUpdateMarker(keyword, [lng, lat])
+    },
+    [restApiKey, createOrUpdateMarker],
+  )
+
+  const geocode = useCallback(
+    async (keyword: string) => {
+      let lastError: Error | null = null
+
+      try {
+        const marker = await geocodeWithPlugin(keyword)
+        if (marker) {
+          return marker
+        }
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error))
+        console.warn('[geocode] plugin geocode failed, attempting REST fallback', lastError)
+      }
+
+      try {
+        const marker = await geocodeWithRest(keyword)
+        if (marker) {
+          return marker
+        }
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error))
+        console.error('[geocode] REST geocode failed', lastError)
+      }
+
+      if (lastError) {
+        throw lastError
+      }
+
+      return null
+    },
+    [geocodeWithPlugin, geocodeWithRest],
+  )
+
   const handleSearch = useCallback(
     async (value: string) => {
       const keyword = value.trim()
-      if (!keyword) return
+      if (!keyword) {
+        setMessage('请输入搜索关键词')
+        return
+      }
+
+      if (!geocoderRef.current || !mapRef.current) {
+        setMessage('地图尚未初始化完成，请稍后再试')
+        return
+      }
 
       setSearching(true)
-      setMessage(null)
+      setMessage('正在搜索定位...')
 
       try {
         const marker = await geocode(keyword)
         if (marker) {
-          setMessage(`已定位：${keyword}`)
+          setMessage(`✅ 已定位：${keyword}`)
         } else {
-          setMessage('未查到对应地点，请尝试更精确的地址描述。')
+          setMessage('❌ 未查到对应地点，请尝试更精确的地址描述（如：北京市天安门广场）')
         }
       } catch (searchError) {
         console.error('[map] search error', searchError)
-        setMessage(searchError instanceof Error ? searchError.message : '定位失败，请稍后重试。')
+        setMessage(searchError instanceof Error ? `❌ ${searchError.message}` : '❌ 定位失败，请稍后重试')
       } finally {
         setSearching(false)
       }
@@ -183,19 +314,27 @@ const MapExplorerPage = () => {
   const handleFocusTrip = useCallback(
     async (destination?: string, title?: string) => {
       if (!destination) {
-        setMessage('该行程尚未设置目的地。')
+        setMessage('❌ 该行程尚未设置目的地')
         return
       }
+
+      if (!geocoderRef.current || !mapRef.current) {
+        setMessage('❌ 地图尚未初始化完成，请稍后再试')
+        return
+      }
+
+      setMessage(`正在定位：${destination}...`)
 
       try {
         const marker = await geocode(destination)
         if (marker) {
-          setMessage(`行程「${title ?? destination}」已在地图中高亮。`)
+          setMessage(`✅ 行程「${title ?? destination}」已在地图中高亮`)
         } else {
-          setMessage('未能定位该行程目的地，请手动搜索。')
+          setMessage(`❌ 未能定位「${destination}」，请尝试手动搜索更精确的地址`)
         }
       } catch (error) {
-        setMessage(error instanceof Error ? error.message : '定位失败，请稍后重试。')
+        console.error('[map] focus trip error', error)
+        setMessage(error instanceof Error ? `❌ ${error.message}` : '❌ 定位失败，请稍后重试')
       }
     },
     [geocode],
@@ -205,7 +344,20 @@ const MapExplorerPage = () => {
     markerMapRef.current.forEach((marker) => marker.setMap(null))
     markerMapRef.current.clear()
     mapRef.current?.setZoomAndCenter(5, DEFAULT_CENTER)
-    setMessage('已清除所有标记。')
+    setMessage('✅ 已清除所有标记')
+  }, [])
+
+  const testGeocoder = useCallback(() => {
+    console.log('[test] geocoder:', geocoderRef.current)
+    console.log('[test] map:', mapRef.current)
+    console.log('[test] amap:', amapRef.current)
+    
+    if (!geocoderRef.current || !mapRef.current) {
+      setMessage('❌ 地图或地理编码服务未初始化')
+      return
+    }
+    
+    setMessage('✅ 地图和地理编码服务已就绪，可以尝试搜索')
   }, [])
 
   return (
@@ -223,6 +375,9 @@ const MapExplorerPage = () => {
               bodyStyle={{ padding: 0, minHeight: 480 }}
               extra={
                 <Space>
+                  <Button onClick={testGeocoder} disabled={mapLoading}>
+                    测试地理编码
+                  </Button>
                   <Button onClick={clearMarkers} disabled={!mapRef.current || markerMapRef.current.size === 0}>
                     清除标记
                   </Button>

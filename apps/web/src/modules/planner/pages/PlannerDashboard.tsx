@@ -1,23 +1,59 @@
-import { Alert, Button, Card, Col, Empty, List, Row, Space, Typography } from 'antd'
+import { Alert, Button, Card, Col, Empty, List, Row, Space, Typography, message, Modal } from 'antd'
 import { PlusOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
-import { useTripsQuery } from '../../../hooks/useTripsQuery'
-import { useTripStore } from '../../../state/useTripStore'
+import { useTripsQuery, useCreateTripMutation } from '../../../hooks/useTripsQuery'
+import { useAuth } from '../../../contexts/AuthContext'
 
 const { Title, Paragraph, Text } = Typography
 
 const PlannerDashboard = () => {
   const navigate = useNavigate()
+  const { user, signOut } = useAuth()
   const { data: trips, isLoading, isError, error, refetch } = useTripsQuery()
-  const upsertTrip = useTripStore((state) => state.upsertTrip)
+  const createTripMutation = useCreateTripMutation()
 
-  const handleCreateDraft = () => {
-    const draftId = crypto.randomUUID()
-    upsertTrip({
-      id: draftId,
-      title: '新的行程草稿',
-    })
-    navigate(`/planner/${draftId}`)
+  const handleCreateDraft = async () => {
+    // 检查用户是否已登录
+    if (!user) {
+      Modal.confirm({
+        title: '需要重新登录',
+        content: '您的登录会话已过期，请重新登录后再创建行程。',
+        okText: '去登录',
+        cancelText: '取消',
+        onOk: async () => {
+          await signOut()
+          navigate('/auth', { replace: true })
+        },
+      })
+      return
+    }
+
+    try {
+      const newTrip = await createTripMutation.mutateAsync({
+        title: '新的行程草稿',
+        destination: '目的地待定',
+      })
+      message.success('行程创建成功')
+      navigate(`/planner/${newTrip.id}`)
+    } catch (err) {
+      console.error('Failed to create trip:', err)
+      const errorMessage = err instanceof Error ? err.message : '创建行程失败，请重试'
+      
+      // 如果是认证错误，提示重新登录
+      if (errorMessage.includes('session') || errorMessage.includes('未登录') || errorMessage.includes('auth')) {
+        Modal.error({
+          title: '认证失败',
+          content: '您的登录会话已失效，请重新登录。',
+          okText: '去登录',
+          onOk: async () => {
+            await signOut()
+            navigate('/auth', { replace: true })
+          },
+        })
+      } else {
+        message.error(errorMessage)
+      }
+    }
   }
 
   const handleViewTrip = (tripId: string) => {
@@ -34,7 +70,13 @@ const PlannerDashboard = () => {
               在这里通过文字或语音描述旅行需求，AI 将生成路线建议、交通方案与住宿推荐。
             </Paragraph>
           </div>
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateDraft} size="large">
+          <Button 
+            type="primary" 
+            icon={<PlusOutlined />} 
+            onClick={handleCreateDraft} 
+            size="large"
+            loading={createTripMutation.isPending}
+          >
             创建新行程
           </Button>
         </Row>

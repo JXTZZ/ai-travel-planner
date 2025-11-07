@@ -15,7 +15,9 @@ export type PlanItineraryRequest = {
 }
 
 export type PlanItineraryResponse = {
-  transcript_id: string | null
+  trip_id: string | null
+  parse_error: string | null
+  raw_content: string
   raw: {
     choices: Array<{
       message: {
