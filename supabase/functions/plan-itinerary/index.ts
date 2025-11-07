@@ -24,6 +24,144 @@ interface PlanRequestBody {
   constraints?: Record<string, unknown>
 }
 
+interface AIItinerary {
+  title: string
+  destination: string
+  startDate?: string
+  endDate?: string
+  partySize?: number
+  budgetTotal?: number
+  budgetCurrency?: string
+  notes?: string
+  days: Array<{
+    dayIndex: number
+    date?: string
+    summary: string
+    activities: Array<{
+      title: string
+      location?: string
+      startTime?: string
+      endTime?: string
+      category?: 'transportation' | 'accommodation' | 'dining' | 'sightseeing' | 'shopping' | 'other'
+      estimatedCost?: number
+      notes?: string
+    }>
+  }>
+}
+
+/**
+ * 解析 AI 返回的内容并存储到数据库
+ */
+async function parseAndStoreItinerary(
+  content: string,
+  userId: string,
+): Promise<{ tripId: string; success: boolean; error?: string }> {
+  try {
+    // 尝试从 AI 响应中提取 JSON
+    let itinerary: AIItinerary
+
+    // 尝试直接解析 JSON
+    try {
+      itinerary = JSON.parse(content)
+    } catch {
+      // 如果失败，尝试从文本中提取 JSON（AI 可能包裹在 markdown 代码块中）
+      const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || content.match(/\{[\s\S]*\}/)
+      if (!jsonMatch) {
+        throw new Error('Unable to extract JSON from AI response')
+      }
+      itinerary = JSON.parse(jsonMatch[1] || jsonMatch[0])
+    }
+
+    // 验证必需字段
+    if (!itinerary.title || !itinerary.destination || !itinerary.days || itinerary.days.length === 0) {
+      throw new Error('Invalid itinerary structure: missing required fields')
+    }
+
+    // 创建行程记录
+    const { data: trip, error: tripError } = await supabaseAdmin
+      .from('trips')
+      .insert({
+        owner_id: userId,
+        title: itinerary.title,
+        destination: itinerary.destination,
+        start_date: itinerary.startDate || null,
+        end_date: itinerary.endDate || null,
+        party_size: itinerary.partySize || 1,
+        budget_currency: itinerary.budgetCurrency || 'CNY',
+        budget_total: itinerary.budgetTotal || null,
+        notes: itinerary.notes || null,
+        metadata: { source: 'ai_generated' },
+      })
+      .select('id')
+      .single()
+
+    if (tripError) {
+      console.error('[plan-itinerary] Failed to create trip:', tripError)
+      throw tripError
+    }
+
+    const tripId = trip.id
+
+    // 批量创建每日行程
+    const tripDaysData = itinerary.days.map((day) => ({
+      trip_id: tripId,
+      day_index: day.dayIndex,
+      date: day.date || null,
+      summary: day.summary,
+    }))
+
+    const { data: tripDays, error: daysError } = await supabaseAdmin
+      .from('trip_days')
+      .insert(tripDaysData)
+      .select('id, day_index')
+
+    if (daysError) {
+      console.error('[plan-itinerary] Failed to create trip days:', daysError)
+      throw daysError
+    }
+
+    // 创建活动记录（关联到对应的 day）
+    const activitiesData: unknown[] = []
+    for (const day of itinerary.days) {
+      const dayRecord = tripDays.find((d: { id: string; day_index: number }) => d.day_index === day.dayIndex)
+      if (!dayRecord) continue
+
+      for (const activity of day.activities) {
+        activitiesData.push({
+          trip_day_id: dayRecord.id,
+          title: activity.title,
+          location: activity.location || null,
+          start_time: activity.startTime || null,
+          end_time: activity.endTime || null,
+          category: activity.category || 'other',
+          estimated_cost: activity.estimatedCost || null,
+          notes: activity.notes || null,
+        })
+      }
+    }
+
+    if (activitiesData.length > 0) {
+      const { error: activitiesError } = await supabaseAdmin
+        .from('trip_activities')
+        .insert(activitiesData)
+
+      if (activitiesError) {
+        console.error('[plan-itinerary] Failed to create activities:', activitiesError)
+        // 不抛出错误，因为行程主体已创建成功
+      }
+    }
+
+    return { tripId, success: true }
+  } catch (error) {
+    console.error('[plan-itinerary] Parse and store error:', error)
+    return {
+      tripId: '',
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    }
+  }
+}
+
 serve(async (req: Request) => {
   if (req.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 })
@@ -57,12 +195,45 @@ serve(async (req: Request) => {
           {
             role: 'system',
             content:
-              `你是专业的中国旅行规划助手。用户会提供目的地和天数，你需要直接输出完整的行程安排，包括：
-- 每日详细景点（开放时间、门票）
-- 推荐餐厅与特色美食
-- 住宿区域建议
-- 交通方式与预估费用
-请用简体中文回复，格式清晰，不要询问用户补充信息。`,
+              `你是专业的中国旅行规划助手。用户会提供目的地和天数，你需要直接输出完整的行程安排 JSON，格式如下：
+
+{
+  "title": "行程标题",
+  "destination": "目的地城市",
+  "startDate": "YYYY-MM-DD",
+  "endDate": "YYYY-MM-DD",
+  "partySize": 人数（数字）,
+  "budgetTotal": 预算金额（数字）,
+  "budgetCurrency": "CNY",
+  "notes": "整体说明",
+  "days": [
+    {
+      "dayIndex": 1,
+      "date": "YYYY-MM-DD",
+      "summary": "当日概要",
+      "activities": [
+        {
+          "title": "活动名称",
+          "location": "具体地点",
+          "startTime": "HH:MM",
+          "endTime": "HH:MM",
+          "category": "transportation/accommodation/dining/sightseeing/shopping/other",
+          "estimatedCost": 费用（数字）,
+          "notes": "备注"
+        }
+      ]
+    }
+  ]
+}
+
+要求：
+1. 必须返回有效的 JSON 格式，不要添加额外的解释文字
+2. 每日至少包含 3-5 个活动
+3. 包含详细的景点信息、开放时间、门票价格
+4. 提供餐厅推荐和特色美食
+5. 包含住宿区域建议
+6. 标注交通方式和预估费用
+7. 使用简体中文`,
           },
           {
             role: 'user',
@@ -80,30 +251,44 @@ serve(async (req: Request) => {
     }
 
     const completion = await llmResponse.json()
+    const content = completion.choices[0]?.message?.content
 
-    // TODO: transform completion into structured itinerary and persist to trips/trip_days tables.
-    let transcriptId: string | null = null
+    if (!content) {
+      return new Response('No content in AI response', { status: 502 })
+    }
+
+    // 解析并存储行程到数据库
+    let tripId: string | null = null
+    let parseError: string | null = null
+
     if (body.userId) {
-      const { data, error } = await supabaseAdmin
+      const result = await parseAndStoreItinerary(content, body.userId)
+      if (result.success) {
+        tripId = result.tripId
+      } else {
+        parseError = result.error || 'Failed to parse itinerary'
+        console.error('[plan-itinerary] Parse error:', parseError)
+      }
+
+      // 无论是否解析成功，都保存原始响应到 voice_transcripts
+      const { error: transcriptError } = await supabaseAdmin
         .from('voice_transcripts')
         .insert({
-          content: JSON.stringify(completion),
-          trip_id: body.tripId ?? null,
+          content: content,
+          trip_id: tripId,
           user_id: body.userId,
         })
-        .select('id')
-        .single()
 
-      if (error) {
-        console.error('[plan-itinerary] Failed to persist raw response', error)
-      } else {
-        transcriptId = data?.id ?? null
+      if (transcriptError) {
+        console.error('[plan-itinerary] Failed to save transcript:', transcriptError)
       }
     }
 
     return new Response(
       JSON.stringify({
-        transcript_id: transcriptId,
+        trip_id: tripId,
+        parse_error: parseError,
+        raw_content: content,
         raw: completion,
       }),
       {

@@ -5,7 +5,6 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { planItinerary } from '../../../lib/edgeFunctions'
-import { useTripStore } from '../../../state/useTripStore'
 import { useVoiceAssistant } from '../hooks/useVoiceAssistant'
 
 const { Title, Paragraph, Text } = Typography
@@ -16,7 +15,6 @@ const VoiceAssistantPage = () => {
   const [generating, setGenerating] = useState(false)
   const { status, transcript, history, error, isRecording, isProcessing, startRecording, stopRecording, reset } =
     useVoiceAssistant()
-  const upsertTrip = useTripStore((state) => state.upsertTrip)
 
   const handleGenerateItinerary = async () => {
     if (!transcript) {
@@ -31,20 +29,22 @@ const VoiceAssistantPage = () => {
         userId: user?.id,
       })
 
-      const content = response.raw.choices[0]?.message?.content
-      if (content) {
-        // 创建新行程草稿
-        const tripId = crypto.randomUUID()
-        upsertTrip({
-          id: tripId,
-          title: `语音规划 - ${dayjs().format('YYYY-MM-DD HH:mm')}`,
-          destination: '待完善',
-        })
-
+      // 检查是否成功创建行程
+      if (response.trip_id) {
         message.success('行程已生成！正在跳转...')
         setTimeout(() => {
-          navigate('/planner')
+          navigate(`/planner/${response.trip_id}`)
         }, 1000)
+      } else if (response.parse_error) {
+        // AI 返回了内容但解析失败
+        message.error(`行程解析失败: ${response.parse_error}`)
+        // 仍然创建草稿让用户手动编辑
+        const content = response.raw_content || response.raw.choices[0]?.message?.content
+        if (content) {
+          message.info('已保存为语音记录，您可以手动创建行程')
+        }
+      } else {
+        message.error('AI 未返回有效内容')
       }
     } catch (err) {
       message.error(err instanceof Error ? err.message : '生成行程失败')
