@@ -9,6 +9,7 @@ const BudgetPage = lazy(() => import('../modules/budget/pages/BudgetPage'))
 const VoiceAssistantPage = lazy(() => import('../modules/voice/pages/VoiceAssistantPage'))
 const CalendarPage = lazy(() => import('../modules/calendar/pages/CalendarPage'))
 const SettingsPage = lazy(() => import('../modules/settings/pages/SettingsPage'))
+const MapExplorerPage = lazy(() => import('../modules/map/pages/MapExplorerPage'))
 
 const withSuspense = (element: React.ReactNode) => (
   <Suspense fallback={<div style={{ padding: 24 }}>加载中...</div>}>
@@ -28,6 +29,10 @@ const routes: RouteObject[] = [
       {
         path: 'planner',
         element: withSuspense(<PlannerDashboard />),
+      },
+      {
+        path: 'map',
+        element: withSuspense(<MapExplorerPage />),
       },
       {
         path: 'budget',

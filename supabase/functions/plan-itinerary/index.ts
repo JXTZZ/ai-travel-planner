@@ -57,7 +57,12 @@ serve(async (req: Request) => {
           {
             role: 'system',
             content:
-              'You are an AI travel planner assistant. Generate detailed itineraries with budget estimation, logistics, and highlights.',
+              `你是专业的中国旅行规划助手。用户会提供目的地和天数，你需要直接输出完整的行程安排，包括：
+- 每日详细景点（开放时间、门票）
+- 推荐餐厅与特色美食
+- 住宿区域建议
+- 交通方式与预估费用
+请用简体中文回复，格式清晰，不要询问用户补充信息。`,
           },
           {
             role: 'user',
