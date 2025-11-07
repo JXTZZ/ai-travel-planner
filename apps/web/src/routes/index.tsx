@@ -3,12 +3,12 @@ import type { RouteObject } from 'react-router-dom'
 import { Navigate, useRoutes } from 'react-router-dom'
 import { AppLayout } from '../components/AppLayout'
 
-const HomePage = lazy(() => import('../modules/home/pages/HomePage.tsx'))
-const PlannerDashboard = lazy(() => import('../modules/planner/pages/PlannerDashboard.tsx'))
-const BudgetPage = lazy(() => import('../modules/budget/pages/BudgetPage.tsx'))
-const VoiceAssistantPage = lazy(() => import('../modules/voice/pages/VoiceAssistantPage.tsx'))
-const CalendarPage = lazy(() => import('../modules/calendar/pages/CalendarPage.tsx'))
-const SettingsPage = lazy(() => import('../modules/settings/pages/SettingsPage.tsx'))
+const HomePage = lazy(() => import('../modules/home/pages/HomePage'))
+const PlannerDashboard = lazy(() => import('../modules/planner/pages/PlannerDashboard'))
+const BudgetPage = lazy(() => import('../modules/budget/pages/BudgetPage'))
+const VoiceAssistantPage = lazy(() => import('../modules/voice/pages/VoiceAssistantPage'))
+const CalendarPage = lazy(() => import('../modules/calendar/pages/CalendarPage'))
+const SettingsPage = lazy(() => import('../modules/settings/pages/SettingsPage'))
 
 const withSuspense = (element: React.ReactNode) => (
   <Suspense fallback={<div style={{ padding: 24 }}>加载中...</div>}>

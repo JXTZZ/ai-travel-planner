@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-type TripSummary = {
+export type TripSummary = {
   id: string
   title: string
   destination?: string
