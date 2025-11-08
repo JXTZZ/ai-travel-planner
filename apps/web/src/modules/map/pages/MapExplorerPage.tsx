@@ -1,4 +1,4 @@
-import { Alert, Button, Card, Col, Empty, Input, List, Row, Space, Spin, Typography } from 'antd'
+import { Alert, Button, Card, Col, Empty, Form, Input, List, Row, Space, Spin, Typography } from 'antd'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import AMapLoader from '@amap/amap-jsapi-loader'
 import '@amap/amap-jsapi-types'
@@ -13,6 +13,7 @@ type AMapModule = Awaited<ReturnType<typeof AMapLoader.load>>
 type MapInstance = InstanceType<AMapModule['Map']>
 type GeocoderInstance = InstanceType<AMapModule['Geocoder']>
 type MarkerInstance = InstanceType<AMapModule['Marker']>
+type DrivingInstance = InstanceType<AMapModule['Driving']>
 
 type GeocoderLocationVariant =
   | {
@@ -62,12 +63,15 @@ const MapExplorerPage = () => {
   const geocoderRef = useRef<GeocoderInstance | null>(null)
   const amapRef = useRef<AMapModule | null>(null)
   const markerMapRef = useRef<Map<string, MarkerInstance>>(new Map())
+  const drivingRef = useRef<DrivingInstance | null>(null)
 
   const { data: trips, isLoading: loadingTrips } = useTripsQuery()
   const [mapLoading, setMapLoading] = useState(true)
   const [mapError, setMapError] = useState<string | null>(null)
   const [searching, setSearching] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
+  const [planningRoute, setPlanningRoute] = useState(false)
+  const [routeForm] = Form.useForm<{ origin: string; destination: string }>()
 
   const apiKey = useMemo(() => import.meta.env.VITE_AMAP_WEB_KEY, [])
   const securityJsCode = useMemo(() => import.meta.env.VITE_AMAP_SECURITY_JS_CODE, [])
@@ -98,7 +102,7 @@ const MapExplorerPage = () => {
         const AMap = await AMapLoader.load({
           key: apiKey,
           version: '2.0',
-          plugins: ['AMap.Scale', 'AMap.ToolBar', 'AMap.Geocoder', 'AMap.Geolocation'],
+          plugins: ['AMap.Scale', 'AMap.ToolBar', 'AMap.Geocoder', 'AMap.Geolocation', 'AMap.Driving'],
         })
 
         if (destroyed) return
@@ -118,9 +122,15 @@ const MapExplorerPage = () => {
           city: '全国', // 设置城市范围为全国
         })
 
+        const driving = new AMap.Driving({
+          map,
+          hideMarkers: false,
+        })
+
         mapRef.current = map
         geocoderRef.current = geocoder
         amapRef.current = AMap
+        drivingRef.current = driving
         
         console.log('[map] initialization complete', { map, geocoder })
       } catch (error) {
@@ -143,6 +153,8 @@ const MapExplorerPage = () => {
       markerStore.clear()
       mapRef.current?.destroy()
       mapRef.current = null
+      drivingRef.current?.clear()
+      drivingRef.current = null
     }
   }, [apiKey, securityJsCode])
 
@@ -381,6 +393,81 @@ const MapExplorerPage = () => {
     setMessage('✅ 已清除所有标记')
   }, [])
 
+  const handlePlanRoute = useCallback(
+    ({ origin, destination }: { origin: string; destination: string }) => {
+      const trimmedOrigin = origin.trim()
+      const trimmedDestination = destination.trim()
+
+      if (!trimmedOrigin || !trimmedDestination) {
+        setMessage('❌ 请填写起点和终点后再规划路线')
+        return
+      }
+
+      if (!drivingRef.current || !mapRef.current) {
+        setMessage('❌ 地图尚未初始化完成，暂时无法规划路线')
+        return
+      }
+
+      setPlanningRoute(true)
+      setMessage(`正在规划路线：${trimmedOrigin} → ${trimmedDestination}...`)
+
+      drivingRef.current.search(
+        [{ keyword: trimmedOrigin }, { keyword: trimmedDestination }],
+        (status: string, result: unknown) => {
+          setPlanningRoute(false)
+          if (status === 'complete') {
+            mapRef.current?.setFitView(null, false, [60, 60, 60, 60])
+            setMessage(`✅ 已生成路线：${trimmedOrigin} → ${trimmedDestination}`)
+          } else if (status === 'no_data') {
+            setMessage('❌ 未找到合适的驾车路线，请尝试更换地址描述')
+          } else {
+            console.error('[map] driving result error', { status, result })
+            setMessage('❌ 路线规划失败，请稍后重试')
+          }
+        },
+      )
+    },
+    [],
+  )
+
+  const handleShareTrip = useCallback((tripId: string, title: string) => {
+    if (typeof window === 'undefined') {
+      setMessage('❌ 当前环境不支持分享功能')
+      return
+    }
+
+    const shareUrl = `${window.location.origin}/planner/${tripId}`
+
+    const shareText = `一起看看我的旅行计划「${title}」吧：${shareUrl}`
+
+    if (navigator.share) {
+      navigator
+        .share({
+          title: `${title} - 旅行规划`,
+          text: shareText,
+          url: shareUrl,
+        })
+        .catch((error) => {
+          console.warn('[map] native share failed', error)
+          setMessage('❌ 系统分享被取消或失败')
+        })
+      return
+    }
+
+    if (navigator.clipboard) {
+      navigator.clipboard
+        .writeText(shareText)
+        .then(() => setMessage('✅ 已复制分享链接，快发给同伴吧'))
+        .catch((error) => {
+          console.warn('[map] clipboard fallback failed', error)
+          setMessage(`分享链接：${shareText}`)
+        })
+      return
+    }
+
+    setMessage(`分享链接：${shareText}`)
+  }, [])
+
   const testGeocoder = useCallback(() => {
     console.log('[test] geocoder:', geocoderRef.current)
     console.log('[test] map:', mapRef.current)
@@ -405,8 +492,8 @@ const MapExplorerPage = () => {
         <Row gutter={[16, 16]}>
           <Col span={16}>
             <Card
-              bordered={false}
-              bodyStyle={{ padding: 0, minHeight: 480 }}
+              variant="borderless"
+              styles={{ body: { padding: 0, minHeight: 480 } }}
               extra={
                 <Space>
                   <Button onClick={testGeocoder} disabled={mapLoading}>
@@ -420,8 +507,11 @@ const MapExplorerPage = () => {
             >
               <div ref={containerRef} style={{ width: '100%', height: 480 }}>
                 {mapLoading && (
-                  <Space style={{ width: '100%', height: 480, justifyContent: 'center', alignItems: 'center', display: 'flex' }}>
-                    <Spin tip="地图加载中..." />
+                  <Space
+                    style={{ width: '100%', height: 480, justifyContent: 'center', alignItems: 'center', display: 'flex' }}
+                  >
+                    <Spin />
+                    <Text>地图加载中…</Text>
                   </Space>
                 )}
               </div>
@@ -440,7 +530,7 @@ const MapExplorerPage = () => {
           </Col>
           <Col span={8}>
             <Space direction="vertical" style={{ width: '100%' }} size="large">
-              <Card bordered={false} title="手动搜索">
+              <Card variant="borderless" title="手动搜索">
                 <Space direction="vertical" style={{ width: '100%' }} size="middle">
                   <Search
                     placeholder="输入目的地或地址"
@@ -452,7 +542,31 @@ const MapExplorerPage = () => {
                   <Text type="secondary">支持中文或英文地址，例如“上海虹桥火车站”。</Text>
                 </Space>
               </Card>
-              <Card bordered={false} title="行程目的地">
+              <Card variant="borderless" title="路线规划">
+                <Form form={routeForm} layout="vertical" onFinish={handlePlanRoute}>
+                  <Form.Item
+                    label="起点"
+                    name="origin"
+                    rules={[{ required: true, message: '请输入路线起点' }]}
+                  >
+                    <Input placeholder="例如：南京南站" allowClear />
+                  </Form.Item>
+                  <Form.Item
+                    label="终点"
+                    name="destination"
+                    rules={[{ required: true, message: '请输入路线终点' }]}
+                  >
+                    <Input placeholder="例如：杭州西湖" allowClear />
+                  </Form.Item>
+                  <Button type="primary" htmlType="submit" loading={planningRoute} block>
+                    规划驾车路线
+                  </Button>
+                </Form>
+                <Paragraph type="secondary" style={{ marginTop: 12 }}>
+                  目前仅支持驾车路线。高德地图将自动在地图上展示推荐线路。
+                </Paragraph>
+              </Card>
+              <Card variant="borderless" title="行程目的地">
                 <List
                   loading={loadingTrips}
                   dataSource={trips ?? []}
@@ -463,9 +577,14 @@ const MapExplorerPage = () => {
                         <Text strong>{trip.title}</Text>
                         <Space align="baseline" style={{ justifyContent: 'space-between' }}>
                           <Text type="secondary">{trip.destination ?? '目的地待定'}</Text>
-                          <Button type="link" onClick={() => handleFocusTrip(trip.destination, trip.title)}>
-                            定位
-                          </Button>
+                          <Space size={4}>
+                            <Button type="link" onClick={() => handleFocusTrip(trip.destination, trip.title)}>
+                              定位
+                            </Button>
+                            <Button type="link" onClick={() => handleShareTrip(trip.id, trip.title)}>
+                              分享
+                            </Button>
+                          </Space>
                         </Space>
                       </Space>
                     </List.Item>

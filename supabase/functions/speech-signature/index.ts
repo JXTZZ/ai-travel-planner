@@ -12,6 +12,12 @@ const appId = Deno.env.get('IFLYTEK_APP_ID')
 const apiKey = Deno.env.get('IFLYTEK_API_KEY')
 const apiSecret = Deno.env.get('IFLYTEK_API_SECRET')
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info',
+}
+
 const DEFAULT_HOST = 'iat-api.xfyun.cn'
 const DEFAULT_PATH = '/v2/iat'
 
@@ -21,7 +27,7 @@ async function generateSignature(host: string, path: string) {
   }
 
   const date = new Date().toUTCString()
-  const signatureOrigin = `host: ${host}\ndate: ${date}\nrequest-line: POST ${path} HTTP/1.1`
+  const signatureOrigin = `host: ${host}\ndate: ${date}\nrequest-line: GET ${path} HTTP/1.1`
 
   const encoder = new TextEncoder()
   const keyData = encoder.encode(apiSecret)
@@ -48,12 +54,16 @@ async function generateSignature(host: string, path: string) {
 }
 
 serve(async (req: Request) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 200, headers: corsHeaders })
+  }
+
   if (req.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405 })
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders })
   }
 
   if (!appId || !apiKey || !apiSecret) {
-    return new Response('Server misconfiguration', { status: 500 })
+    return new Response('Server misconfiguration', { status: 500, headers: corsHeaders })
   }
 
   let body: { host?: string; path?: string } | null = null
@@ -69,10 +79,10 @@ serve(async (req: Request) => {
   try {
     const signature = await generateSignature(host, path)
     return new Response(JSON.stringify(signature), {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
     })
   } catch (error) {
     console.error('[speech-signature] Failed to generate signature', error)
-    return new Response('Failed to generate signature', { status: 500 })
+    return new Response('Failed to generate signature', { status: 500, headers: corsHeaders })
   }
 })

@@ -1,10 +1,12 @@
 import { Alert, Button, Card, Col, Empty, Input, List, Row, Space, Typography, message, Modal } from 'antd'
 import { PlusOutlined, RobotOutlined } from '@ant-design/icons'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTripsQuery, useCreateTripMutation } from '../../../hooks/useTripsQuery'
 import { useAuth } from '../../../contexts/AuthContext'
 import { planItinerary } from '../../../lib/edgeFunctions'
+import { usePreferencesQuery } from '../../../hooks/usePreferences'
+import { DEFAULT_PREFERENCES } from '../../../types/preferences'
 
 const { Title, Paragraph, Text } = Typography
 const { TextArea } = Input
@@ -14,6 +16,9 @@ const PlannerDashboard = () => {
   const { user, signOut } = useAuth()
   const { data: trips, isLoading, isError, error, refetch } = useTripsQuery()
   const createTripMutation = useCreateTripMutation()
+  const { data: preferences } = usePreferencesQuery()
+
+  const preferenceSnapshot = useMemo(() => preferences ?? DEFAULT_PREFERENCES, [preferences])
   
   const [aiModalOpen, setAiModalOpen] = useState(false)
   const [aiPrompt, setAiPrompt] = useState('')
@@ -37,8 +42,18 @@ const PlannerDashboard = () => {
 
     try {
       const newTrip = await createTripMutation.mutateAsync({
-        title: '新的行程草稿',
+        title: `${preferenceSnapshot.homeCity} 出发行程草稿`,
         destination: '目的地待定',
+        notes: `偏好节奏：${
+          preferenceSnapshot.travelPace === 'easy'
+            ? '轻松'
+            : preferenceSnapshot.travelPace === 'tight'
+              ? '紧凑'
+              : '均衡'
+        }，每日预计行程 ${preferenceSnapshot.dailyHours} 小时。`,
+        metadata: {
+          preferenceSnapshot,
+        },
       })
       message.success('行程创建成功')
       navigate(`/planner/${newTrip.id}`)
@@ -162,7 +177,7 @@ const PlannerDashboard = () => {
         </Row>
         <Row gutter={[16, 16]}>
           <Col span={24}>
-            <Card title="我的行程" bordered={false}>
+            <Card title="我的行程" variant="borderless">
               {isError ? (
                 <Alert
                   type="error"

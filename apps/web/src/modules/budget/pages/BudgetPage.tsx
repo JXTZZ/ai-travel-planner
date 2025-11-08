@@ -117,12 +117,12 @@ const BudgetPage = () => {
         </Paragraph>
         <Row gutter={[16, 16]}>
           <Col span={8}>
-            <Card bordered={false}>
+            <Card variant="borderless">
               <Statistic title="预算总额 (规划中)" value={0} suffix={mainCurrency} precision={2} />
             </Card>
           </Col>
           <Col span={8}>
-            <Card bordered={false}>
+            <Card variant="borderless">
               <Statistic
                 title="已记录支出"
                 value={totalSpent}
@@ -133,7 +133,7 @@ const BudgetPage = () => {
             </Card>
           </Col>
           <Col span={8}>
-            <Card bordered={false}>
+            <Card variant="borderless">
               <Statistic
                 title="剩余预算 (规划中)"
                 value={0 - totalSpent}
@@ -144,7 +144,7 @@ const BudgetPage = () => {
             </Card>
           </Col>
         </Row>
-        <Card title="按行程统计" bordered={false}>
+  <Card title="按行程统计" variant="borderless">
           {isError ? (
             <Alert
               type="error"
@@ -191,7 +191,7 @@ const BudgetPage = () => {
         {selectedTripId && (
           <Card
             title={`费用明细 - ${trips.find((t) => t.id === selectedTripId)?.title ?? '未命名'}`}
-            bordered={false}
+            variant="borderless"
             extra={
               <Button type="primary" icon={<PlusOutlined />} onClick={() => handleOpenModal(selectedTripId)}>
                 添加费用
