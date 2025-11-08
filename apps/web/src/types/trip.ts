@@ -28,7 +28,10 @@ export interface TripDay {
 
 export interface TripActivity {
   id: string
+  trip_id: string
   trip_day_id: string
+  day_index?: number | null
+  order_index?: number | null
   title: string
   location?: string | null
   start_time?: string | null
@@ -61,7 +64,10 @@ export interface TripDayInput {
 }
 
 export interface TripActivityInput {
+  trip_id: string
   trip_day_id: string
+  day_index?: number
+  order_index?: number
   title: string
   location?: string
   start_time?: string
@@ -70,6 +76,14 @@ export interface TripActivityInput {
   estimated_cost?: number
   notes?: string
   metadata?: Record<string, unknown>
+}
+
+export interface TripDayWithActivities extends TripDay {
+  trip_activities?: TripActivity[]
+}
+
+export interface TripWithDetails extends Trip {
+  trip_days?: TripDayWithActivities[]
 }
 
 // AI 生成的行程结构

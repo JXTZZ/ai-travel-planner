@@ -10,7 +10,12 @@ export default defineConfig({
       libList: [
         {
           libName: 'antd',
-          style: (name) => `antd/es/${name}/style/index.js`,
+          style: (name) => {
+            if (name === 'time-picker') {
+              return 'antd/es/date-picker/style/index.js'
+            }
+            return `antd/es/${name}/style/index.js`
+          },
         },
       ],
     }),
