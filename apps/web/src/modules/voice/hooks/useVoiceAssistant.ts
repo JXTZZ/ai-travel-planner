@@ -10,7 +10,7 @@ type VoiceTranscript = {
 
 const isBrowser = typeof window !== 'undefined'
 
-export const useVoiceAssistant = () => {
+export const useVoiceAssistant = (onTranscript?: (text: string) => void) => {
   const [status, setStatus] = useState<VoiceAssistantStatus>('idle')
   const [error, setError] = useState<string | null>(null)
   const [transcript, setTranscript] = useState('')
@@ -72,7 +72,8 @@ export const useVoiceAssistant = () => {
       if (!mountedRef.current) return
 
       setTranscript(result)
-      setHistory((prev) => [...prev, { text: result, createdAt: new Date().toISOString() }])
+  setHistory((prev) => [...prev, { text: result, createdAt: new Date().toISOString() }])
+  onTranscript?.(result)
       setStatus('idle')
     } catch (processingError) {
       console.error('[voice] processing failed', processingError)
@@ -82,7 +83,7 @@ export const useVoiceAssistant = () => {
     } finally {
       audioChunksRef.current = []
     }
-  }, [])
+  }, [onTranscript])
 
   const startRecording = useCallback(async () => {
     if (!isBrowser) {
@@ -243,7 +244,7 @@ const sendAudioToIFlyTek = (signature: SpeechSignatureResponse, audioBase64: str
     const socket = new WebSocket(url)
 
     socket.onopen = () => {
-      const payload = {
+      const basePayload = {
         common: { app_id: appId },
         business: {
           language: 'zh_cn',
@@ -251,15 +252,33 @@ const sendAudioToIFlyTek = (signature: SpeechSignatureResponse, audioBase64: str
           accent: 'mandarin',
           vad_eos: 5000,
         },
-        data: {
-          status: 2,
-          format: 'audio/L16;rate=16000',
-          encoding: 'raw',
-          audio: audioBase64,
-        },
-      }
+      } as const
 
-      socket.send(JSON.stringify(payload))
+      // 首帧
+      socket.send(
+        JSON.stringify({
+          ...basePayload,
+          data: {
+            status: 0,
+            format: 'audio/L16;rate=16000',
+            encoding: 'raw',
+            audio: audioBase64,
+          },
+        }),
+      )
+
+      // 尾帧
+      socket.send(
+        JSON.stringify({
+          ...basePayload,
+          data: {
+            status: 2,
+            format: 'audio/L16;rate=16000',
+            encoding: 'raw',
+            audio: '',
+          },
+        }),
+      )
     }
 
     socket.onmessage = (event) => {

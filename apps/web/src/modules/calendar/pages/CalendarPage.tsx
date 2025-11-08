@@ -21,6 +21,7 @@ import {
 } from 'antd'
 import type { Dayjs } from 'dayjs'
 import dayjs from 'dayjs'
+import type { CalendarProps } from 'antd'
 import {
   DragDropContext,
   Draggable,
@@ -215,6 +216,13 @@ const CalendarPage = () => {
         )}
       </Space>
     )
+  }
+
+  const calendarCellRender: CalendarProps<Dayjs>['cellRender'] = (current, info) => {
+    if (info.type === 'date') {
+      return dateCellRender(current)
+    }
+    return info.originNode
   }
 
   const handleTripChange = (value: string) => {
@@ -533,7 +541,7 @@ const CalendarPage = () => {
           通过日历查看行程安排，拖拽即可调整当天活动顺序，支持新增、编辑与删除。
         </Paragraph>
 
-        <Card bordered={false}>
+  <Card variant="borderless">
           <Space direction="vertical" style={{ width: '100%' }} size="large">
             <Space wrap>
               <Text strong>选择行程：</Text>
@@ -548,7 +556,10 @@ const CalendarPage = () => {
             </Space>
 
             {tripLoading ? (
-              <Spin tip="正在加载行程详情" />
+              <Space align="center">
+                <Spin />
+                <Text>正在加载行程详情…</Text>
+              </Space>
             ) : !tripDetail ? (
               <Empty description="请选择一个有效的行程" />
             ) : (
@@ -560,7 +571,7 @@ const CalendarPage = () => {
                       userSelectedRef.current = true
                       setSelectedDate(value)
                     }}
-                    dateCellRender={dateCellRender}
+                    cellRender={calendarCellRender}
                   />
                 </div>
                 <div style={{ flex: '1 1 40%' }}>
@@ -578,7 +589,7 @@ const CalendarPage = () => {
                         新增活动
                       </Button>
                     }
-                    bordered={false}
+                    variant="borderless"
                   >
                     {!selectedDate ? (
                       <Empty description="请选择日期" />
@@ -609,14 +620,13 @@ const CalendarPage = () => {
                                           marginBottom: 12,
                                           borderRadius: 8,
                                           border: snapshot.isDragging ? '1px solid #1677ff' : '1px solid #f0f0f0',
-                                          background: '#fff',
                                           boxShadow: snapshot.isDragging ? '0 4px 12px rgba(22, 119, 255, 0.15)' : undefined,
                                           ...draggableProvided.draggableProps.style,
                                         }}
                                       >
                                         <Card
                                           size="small"
-                                          bordered={false}
+                                          variant="borderless"
                                           title={
                                             <Space>
                                               <Text strong>{activity.title}</Text>
@@ -691,7 +701,7 @@ const CalendarPage = () => {
           }}
           onOk={handleActivitySubmit}
           confirmLoading={activitySaving}
-          destroyOnClose
+          destroyOnHidden
         >
           <Form form={activityForm} layout="vertical" preserve={false}>
             <Form.Item

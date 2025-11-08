@@ -19,7 +19,7 @@ const HomePage = () => {
     <div className="page-container">
       <Row gutter={[24, 24]}>
         <Col span={24}>
-          <Card bordered={false} className="hero-card">
+          <Card variant="borderless" className="hero-card">
             <Space direction="vertical" size="large">
               <Space direction="vertical" size={4}>
                 <Text type="secondary">LoTus&apos;AI assistant</Text>
@@ -40,7 +40,7 @@ const HomePage = () => {
           </Card>
         </Col>
         <Col span={12}>
-          <Card title="核心能力" bordered={false}>
+          <Card title="核心能力" variant="borderless">
             <Space direction="vertical">
               <Text>· 智能行程规划与交通、住宿、餐饮建议</Text>
               <Text>· 语音录入与实时语音助手</Text>
@@ -50,7 +50,7 @@ const HomePage = () => {
           </Card>
         </Col>
         <Col span={12}>
-          <Card title="待办提示" bordered={false}>
+          <Card title="待办提示" variant="borderless">
             <Space direction="vertical">
               <Text>1. 配置 Supabase 数据库表与 RLS 策略</Text>
               <Text>2. 部署 Edge Functions 接入 DeepSeek 与科大讯飞</Text>

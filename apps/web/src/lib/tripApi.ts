@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient'
+import { fetchTripDetails } from './edgeFunctions'
 import type {
   Trip,
   TripInput,
@@ -31,29 +32,7 @@ export const getTrips = async (): Promise<Trip[]> => {
  * 根据 ID 获取单个行程（包含每日安排及活动）
  */
 export const getTripById = async (id: string): Promise<TripWithDetails | null> => {
-  const { data, error } = await supabase
-    .from('trips')
-    .select(`
-      *,
-      trip_days (
-        *,
-        trip_activities (*)
-      )
-    `)
-    .eq('id', id)
-    .order('day_index', { ascending: true, foreignTable: 'trip_days' })
-    .order('order_index', { ascending: true, foreignTable: 'trip_days.trip_activities' })
-    .order('start_time', { ascending: true, foreignTable: 'trip_days.trip_activities' })
-    .single()
-
-  if (error) {
-    if (error.code === 'PGRST116') {
-      return null
-    }
-    throw new Error(`获取行程详情失败: ${error.message}`)
-  }
-
-  return data
+  return fetchTripDetails(id)
 }
 
 /**
