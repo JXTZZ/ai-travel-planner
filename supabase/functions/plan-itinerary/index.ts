@@ -195,16 +195,33 @@ const clonePlainObject = (value: unknown): Record<string, unknown> => {
 
 const sanitizeAiJsonText = (raw: string): string => {
   let result = raw
+  // 移除空字符串键值对：",""
+  result = result.replace(/,\s*""\s*,/g, ',')
+  result = result.replace(/,\s*""\s*}/g, '}')
+  result = result.replace(/,\s*""\s*\]/g, ']')
+  result = result.replace(/{\s*""\s*,/g, '{')
+  result = result.replace(/\[\s*""\s*,/g, '[')
+  
+  // 修复键名相关错误
   result = result.replace(/"\s*,\s*"([A-Za-z0-9_]+)"\s*:/g, ',"$1":')
   result = result.replace(/,\s*":\s*"([A-Za-z0-9_]+)"\s*:/g, ', "$1":')
   result = result.replace(/:\s*",\s*"([A-Za-z0-9_]+)"/g, ': "$1"')
+  
+  // 修复字符串拼接相关错误
   result = result.replace(/,\s*"\+\s*"/g, ',"')
   result = result.replace(/:\s*"\+\s*"/g, ':"')
   result = result.replace(/"\s*\+\s*"/g, '"')
   result = result.replace(/\+\s*"/g, '"')
+  
+  // 修复尾部多余逗号
   result = result.replace(/"\s*,\s*"\s*}/g, '"}')
   result = result.replace(/"\s*,\s*"\s*\]/g, '"]')
   result = result.replace(/,\s*([}\]])/g, '$1')
+  
+  // 移除字段值为空字符串的无效键值对（更激进）
+  result = result.replace(/"[^"]*"\s*:\s*""\s*,/g, '')
+  result = result.replace(/,\s*"[^"]*"\s*:\s*""/g, '')
+  
   return result
 }
 
