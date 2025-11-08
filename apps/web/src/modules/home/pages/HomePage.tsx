@@ -1,6 +1,5 @@
 import { Button, Card, Col, Row, Space, Typography } from 'antd'
 import { useNavigate } from 'react-router-dom'
-import { SupabaseConnectionTest } from '../../../components/SupabaseConnectionTest'
 
 const { Title, Paragraph, Text } = Typography
 
@@ -39,7 +38,7 @@ const HomePage = () => {
             </Space>
           </Card>
         </Col>
-        <Col span={12}>
+        <Col span={24}>
           <Card title="核心能力" variant="borderless">
             <Space direction="vertical">
               <Text>· 智能行程规划与交通、住宿、餐饮建议</Text>
@@ -48,18 +47,6 @@ const HomePage = () => {
               <Text>· 预算管理与费用追踪</Text>
             </Space>
           </Card>
-        </Col>
-        <Col span={12}>
-          <Card title="待办提示" variant="borderless">
-            <Space direction="vertical">
-              <Text>1. 配置 Supabase 数据库表与 RLS 策略</Text>
-              <Text>2. 部署 Edge Functions 接入 DeepSeek 与科大讯飞</Text>
-              <Text>3. 完成地图与语音模块前端集成</Text>
-            </Space>
-          </Card>
-        </Col>
-        <Col span={24}>
-          <SupabaseConnectionTest />
         </Col>
       </Row>
     </div>

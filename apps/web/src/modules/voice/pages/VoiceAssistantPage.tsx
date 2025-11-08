@@ -1,16 +1,9 @@
-import { AudioMutedOutlined, AudioOutlined, ClearOutlined, DeleteOutlined, SendOutlined } from '@ant-design/icons'
-import { Alert, Button, Card, Input, List, Popconfirm, message, Space, Spin, Typography } from 'antd'
-import dayjs from 'dayjs'
+import { AudioMutedOutlined, AudioOutlined, ClearOutlined, SendOutlined } from '@ant-design/icons'
+import { Alert, Button, Card, Input, message, Space, Spin, Typography } from 'antd'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { planItinerary } from '../../../lib/edgeFunctions'
-import {
-  useVoiceTranscriptsQuery,
-  useSaveVoiceTranscriptMutation,
-  useDeleteVoiceTranscriptMutation,
-  useClearVoiceTranscriptsMutation,
-} from '../../../hooks/useVoiceTranscripts'
 import { useVoiceAssistant } from '../hooks/useVoiceAssistant'
 
 const { Title, Paragraph, Text } = Typography
@@ -21,27 +14,15 @@ const VoiceAssistantPage = () => {
   const navigate = useNavigate()
   const [generating, setGenerating] = useState(false)
   const [transcriptDraft, setTranscriptDraft] = useState('')
-  const [deletingTranscriptId, setDeletingTranscriptId] = useState<string | null>(null)
-
-  const { data: savedTranscripts, isLoading: loadingTranscripts, error: transcriptsError } = useVoiceTranscriptsQuery()
-  const saveTranscriptMutation = useSaveVoiceTranscriptMutation()
-  const deleteTranscriptMutation = useDeleteVoiceTranscriptMutation()
-  const clearTranscriptsMutation = useClearVoiceTranscriptsMutation()
 
   const handleTranscriptCaptured = useCallback(
     async (text: string) => {
       setTranscriptDraft(text)
-      try {
-        await saveTranscriptMutation.mutateAsync({ content: text })
-      } catch (err) {
-        console.warn('[voice] failed to persist transcript', err)
-        message.warning('语音记录已生成，但保存到云端失败')
-      }
     },
-    [saveTranscriptMutation],
+    [],
   )
 
-  const { status, transcript, error, isRecording, isProcessing, startRecording, stopRecording, reset } =
+  const { status, transcript, error, isRecording, isProcessing, startRecording, stopRecording } =
     useVoiceAssistant(handleTranscriptCaptured)
 
   useEffect(() => {
@@ -51,37 +32,6 @@ const VoiceAssistantPage = () => {
   }, [transcript])
 
   const hasTranscript = useMemo(() => transcriptDraft.trim().length > 0, [transcriptDraft])
-  const savedTranscriptCount = savedTranscripts?.length ?? 0
-  const hasSavedHistory = savedTranscriptCount > 0
-  const isClearingHistory = clearTranscriptsMutation.isPending
-
-  const handleDeleteTranscript = useCallback(
-    async (id: string) => {
-      setDeletingTranscriptId(id)
-      try {
-        await deleteTranscriptMutation.mutateAsync({ id })
-        message.success('已删除语音记录')
-      } catch (deleteError) {
-        message.error(deleteError instanceof Error ? deleteError.message : '删除语音记录失败')
-      } finally {
-        setDeletingTranscriptId(null)
-      }
-    },
-    [deleteTranscriptMutation],
-  )
-
-  const handleClearHistory = useCallback(async () => {
-    try {
-      if (hasSavedHistory) {
-        await clearTranscriptsMutation.mutateAsync()
-      }
-      reset()
-      setTranscriptDraft('')
-      message.success(hasSavedHistory ? '已清空语音历史' : '已清空当前识别内容')
-    } catch (clearError) {
-      message.error(clearError instanceof Error ? clearError.message : '清空语音历史失败')
-    }
-  }, [clearTranscriptsMutation, hasSavedHistory, reset])
 
   const handleGenerateItinerary = async () => {
     const prompt = transcriptDraft.trim()
@@ -92,12 +42,6 @@ const VoiceAssistantPage = () => {
 
     setGenerating(true)
     try {
-      try {
-        await saveTranscriptMutation.mutateAsync({ content: prompt })
-      } catch (persistError) {
-        console.warn('[voice] persist before planning failed', persistError)
-      }
-
       const response = await planItinerary({
         prompt,
         userId: user?.id,
@@ -112,11 +56,6 @@ const VoiceAssistantPage = () => {
       } else if (response.parse_error) {
         // AI 返回了内容但解析失败
         message.error(`行程解析失败: ${response.parse_error}`)
-        // 仍然创建草稿让用户手动编辑
-        const content = response.raw_content || response.raw.choices[0]?.message?.content
-        if (content) {
-          message.info('已保存为语音记录，您可以手动创建行程')
-        }
       } else {
         message.error('AI 未返回有效内容')
       }
@@ -142,8 +81,17 @@ const VoiceAssistantPage = () => {
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         <Title level={3}>语音助手</Title>
         <Paragraph type="secondary">
-          点击开始录音后，系统会通过科大讯飞实时语音识别接口转写内容，并结合 DeepSeek 模型进行后续规划。
+          点击"开始语音输入"后说出您的旅行需求（建议录音 3-10 秒），系统会通过科大讯飞实时语音识别接口转写内容，并结合
+          DeepSeek 模型生成行程方案。
         </Paragraph>
+        {isRecording && (
+          <Alert
+            type="info"
+            showIcon
+            message="正在录音中..."
+            description="请清晰说出您的旅行需求，例如：我想从南京去杭州玩三天，预算三千元。录音完成后点击【停止录音】。"
+          />
+        )}
   <Card variant="borderless" title="语音交互">
           <Space direction="vertical" size="large" style={{ width: '100%' }}>
             <Space>
@@ -156,21 +104,13 @@ const VoiceAssistantPage = () => {
               >
                 生成行程
               </Button>
-              <Popconfirm
-                title="确定清空语音识别历史？"
-                okText="清空"
-                cancelText="取消"
-                onConfirm={handleClearHistory}
-                disabled={isRecording || (!hasTranscript && !hasSavedHistory)}
+              <Button
+                icon={<ClearOutlined />}
+                disabled={isRecording || !hasTranscript}
+                onClick={() => setTranscriptDraft('')}
               >
-                <Button
-                  icon={<ClearOutlined />}
-                  disabled={isRecording || (!hasTranscript && !hasSavedHistory)}
-                  loading={isClearingHistory}
-                >
-                  清空历史
-                </Button>
-              </Popconfirm>
+                清空文本
+              </Button>
             </Space>
             {status === 'processing' && (
               <Space>
@@ -198,43 +138,6 @@ const VoiceAssistantPage = () => {
               </Paragraph>
             </Card>
           </Space>
-        </Card>
-  <Card variant="borderless" title="识别历史">
-          {transcriptsError && <Alert type="error" showIcon message="无法加载语音记录" description={transcriptsError.message} />}
-          <List
-            loading={loadingTranscripts}
-            dataSource={savedTranscripts ?? []}
-            locale={{ emptyText: '暂无云端历史记录，快来试试语音输入吧。' }}
-            renderItem={(item) => (
-              <List.Item
-                actions={[
-                  <Popconfirm
-                    key="delete"
-                    title="删除这条语音记录？"
-                    okText="删除"
-                    cancelText="取消"
-                    onConfirm={() => handleDeleteTranscript(item.id)}
-                    disabled={deleteTranscriptMutation.isPending && deletingTranscriptId !== item.id}
-                  >
-                    <Button
-                      type="link"
-                      size="small"
-                      danger
-                      icon={<DeleteOutlined />}
-                      loading={deleteTranscriptMutation.isPending && deletingTranscriptId === item.id}
-                    >
-                      删除
-                    </Button>
-                  </Popconfirm>,
-                ]}
-              >
-                <Space direction="vertical" size={0} style={{ width: '100%' }}>
-                  <Text type="secondary">{dayjs(item.transcribedAt).format('YYYY-MM-DD HH:mm:ss')}</Text>
-                  <Text>{item.content}</Text>
-                </Space>
-              </List.Item>
-            )}
-          />
         </Card>
       </Space>
     </div>

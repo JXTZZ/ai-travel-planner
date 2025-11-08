@@ -27,7 +27,12 @@ async function generateSignature(host: string, path: string) {
   }
 
   const date = new Date().toUTCString()
-  const signatureOrigin = `host: ${host}\ndate: ${date}\nrequest-line: GET ${path} HTTP/1.1`
+  
+  // iFlyTek WebSocket API 签名原文格式: host: xxx\ndate: xxx\nGET /v2/iat HTTP/1.1
+  // 注意：request-line 使用 GET，不是 POST
+  const signatureOrigin = `host: ${host}\ndate: ${date}\nGET ${path} HTTP/1.1`
+
+  console.log('[speech-signature] signature origin:', signatureOrigin)
 
   const encoder = new TextEncoder()
   const keyData = encoder.encode(apiSecret)
@@ -41,8 +46,11 @@ async function generateSignature(host: string, path: string) {
   const signatureBytes = await crypto.subtle.sign('HMAC', signingKey, encoder.encode(signatureOrigin))
   const signature = btoa(String.fromCharCode(...new Uint8Array(signatureBytes)))
 
-  const authorizationOrigin = `api_key=\"${apiKey}\", algorithm=\"hmac-sha256\", headers=\"host date request-line\", signature=\"${signature}\"`
+  const authorizationOrigin = `api_key="${apiKey}", algorithm="hmac-sha256", headers="host date request-line", signature="${signature}"`
   const authorization = btoa(authorizationOrigin)
+
+  console.log('[speech-signature] authorization origin:', authorizationOrigin)
+  console.log('[speech-signature] authorization base64:', authorization)
 
   return {
     appId,

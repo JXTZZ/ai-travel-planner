@@ -7,6 +7,8 @@ export type TripSummary = {
   destination?: string
   startDate?: string
   endDate?: string
+  budget_total?: number | null
+  budget_currency?: string
 }
 
 type TripState = {
