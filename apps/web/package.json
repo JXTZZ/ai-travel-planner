@@ -13,6 +13,7 @@
     "@amap/amap-jsapi-loader": "^1.0.1",
     "@amap/amap-jsapi-types": "^0.0.15",
     "@ant-design/icons": "^6.1.0",
+  "@hello-pangea/dnd": "^18.0.1",
     "@supabase/supabase-js": "^2.79.0",
     "@tanstack/react-query": "^5.90.7",
     "antd": "^5.28.0",

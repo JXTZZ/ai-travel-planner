@@ -51,10 +51,14 @@ interface AIItinerary {
 
 /**
  * 解析 AI 返回的内容并存储到数据库
+ * @param content AI 返回的 JSON 内容
+ * @param userId 用户 ID
+ * @param existingTripId 可选，如果提供则更新现有行程，否则创建新行程
  */
 async function parseAndStoreItinerary(
   content: string,
   userId: string,
+  existingTripId?: string,
 ): Promise<{ tripId: string; success: boolean; error?: string }> {
   try {
     // 尝试从 AI 响应中提取 JSON
@@ -77,30 +81,64 @@ async function parseAndStoreItinerary(
       throw new Error('Invalid itinerary structure: missing required fields')
     }
 
-    // 创建行程记录
-    const { data: trip, error: tripError } = await supabaseAdmin
-      .from('trips')
-      .insert({
-        owner_id: userId,
-        title: itinerary.title,
-        destination: itinerary.destination,
-        start_date: itinerary.startDate || null,
-        end_date: itinerary.endDate || null,
-        party_size: itinerary.partySize || 1,
-        budget_currency: itinerary.budgetCurrency || 'CNY',
-        budget_total: itinerary.budgetTotal || null,
-        notes: itinerary.notes || null,
-        metadata: { source: 'ai_generated' },
-      })
-      .select('id')
-      .single()
+    let tripId: string
 
-    if (tripError) {
-      console.error('[plan-itinerary] Failed to create trip:', tripError)
-      throw tripError
+    if (existingTripId) {
+      // 更新现有行程
+      const { error: updateError } = await supabaseAdmin
+        .from('trips')
+        .update({
+          title: itinerary.title,
+          destination: itinerary.destination,
+          start_date: itinerary.startDate || null,
+          end_date: itinerary.endDate || null,
+          party_size: itinerary.partySize || 1,
+          budget_currency: itinerary.budgetCurrency || 'CNY',
+          budget_total: itinerary.budgetTotal || null,
+          notes: itinerary.notes || null,
+          metadata: { source: 'ai_generated', updated_at: new Date().toISOString() },
+        })
+        .eq('id', existingTripId)
+        .eq('owner_id', userId)
+
+      if (updateError) {
+        console.error('[plan-itinerary] Failed to update trip:', updateError)
+        throw updateError
+      }
+
+      tripId = existingTripId
+
+      // 删除现有的每日行程和活动（重新生成）
+      await supabaseAdmin
+        .from('trip_days')
+        .delete()
+        .eq('trip_id', tripId)
+    } else {
+      // 创建新行程记录
+      const { data: trip, error: tripError } = await supabaseAdmin
+        .from('trips')
+        .insert({
+          owner_id: userId,
+          title: itinerary.title,
+          destination: itinerary.destination,
+          start_date: itinerary.startDate || null,
+          end_date: itinerary.endDate || null,
+          party_size: itinerary.partySize || 1,
+          budget_currency: itinerary.budgetCurrency || 'CNY',
+          budget_total: itinerary.budgetTotal || null,
+          notes: itinerary.notes || null,
+          metadata: { source: 'ai_generated' },
+        })
+        .select('id')
+        .single()
+
+      if (tripError) {
+        console.error('[plan-itinerary] Failed to create trip:', tripError)
+        throw tripError
+      }
+
+      tripId = trip.id
     }
-
-    const tripId = trip.id
 
     // 批量创建每日行程
     const tripDaysData = itinerary.days.map((day) => ({
@@ -126,16 +164,21 @@ async function parseAndStoreItinerary(
       const dayRecord = tripDays.find((d: { id: string; day_index: number }) => d.day_index === day.dayIndex)
       if (!dayRecord) continue
 
+      let orderIndex = 0
       for (const activity of day.activities) {
         activitiesData.push({
+          trip_id: tripId,
           trip_day_id: dayRecord.id,
+          day_index: day.dayIndex,
+          order_index: orderIndex++,
           title: activity.title,
           location: activity.location || null,
           start_time: activity.startTime || null,
           end_time: activity.endTime || null,
+          estimated_cost: activity.estimatedCost,
           category: activity.category || 'other',
-          estimated_cost: activity.estimatedCost || null,
           notes: activity.notes || null,
+          metadata: {},
         })
       }
     }
@@ -155,7 +198,7 @@ async function parseAndStoreItinerary(
   } catch (error) {
     console.error('[plan-itinerary] Parse and store error:', error)
     return {
-      tripId: '',
+      tripId: existingTripId || '',
       success: false,
       error: error instanceof Error ? error.message : String(error),
     }
@@ -262,7 +305,7 @@ serve(async (req: Request) => {
     let parseError: string | null = null
 
     if (body.userId) {
-      const result = await parseAndStoreItinerary(content, body.userId)
+      const result = await parseAndStoreItinerary(content, body.userId, body.tripId)
       if (result.success) {
         tripId = result.tripId
       } else {

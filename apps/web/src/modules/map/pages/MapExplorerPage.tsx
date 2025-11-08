@@ -14,6 +14,40 @@ type MapInstance = InstanceType<AMapModule['Map']>
 type GeocoderInstance = InstanceType<AMapModule['Geocoder']>
 type MarkerInstance = InstanceType<AMapModule['Marker']>
 
+type GeocoderLocationVariant =
+  | {
+      getLng?: () => number
+      getLat?: () => number
+      lng?: number
+      lat?: number
+    }
+  | [number, number]
+  | null
+  | undefined
+
+interface GeocoderSearchResult {
+  geocodes?: Array<{
+    location?: GeocoderLocationVariant
+    [key: string]: unknown
+  }>
+  [key: string]: unknown
+}
+
+const isMethodLocation = (location: GeocoderLocationVariant): location is { getLng: () => number; getLat: () => number } =>
+  typeof location === 'object' &&
+  location !== null &&
+  typeof (location as { getLng?: unknown }).getLng === 'function' &&
+  typeof (location as { getLat?: unknown }).getLat === 'function'
+
+const isPropertyLocation = (location: GeocoderLocationVariant): location is { lng: number; lat: number } =>
+  typeof location === 'object' &&
+  location !== null &&
+  typeof (location as { lng?: unknown }).lng === 'number' &&
+  typeof (location as { lat?: unknown }).lat === 'number'
+
+const isTupleLocation = (location: GeocoderLocationVariant): location is [number, number] =>
+  Array.isArray(location) && location.length >= 2
+
 declare global {
   interface Window {
     _AMapSecurityConfig?: {
@@ -155,7 +189,7 @@ const MapExplorerPage = () => {
         }, 8000)
 
         try {
-          geocoder.getLocation(keyword, (status: string, result: any) => {
+          geocoder.getLocation(keyword, (status: string, result: GeocoderSearchResult) => {
             clearTimeout(timeoutId)
             console.log('[geocode] plugin callback - status:', status, 'result:', result)
 
@@ -166,13 +200,13 @@ const MapExplorerPage = () => {
                 let lng: number
                 let lat: number
 
-                if (typeof location?.getLng === 'function' && typeof location?.getLat === 'function') {
+                if (isMethodLocation(location)) {
                   lng = location.getLng()
                   lat = location.getLat()
-                } else if (typeof location?.lng === 'number' && typeof location?.lat === 'number') {
+                } else if (isPropertyLocation(location)) {
                   lng = location.lng
                   lat = location.lat
-                } else if (Array.isArray(location) && location.length >= 2) {
+                } else if (isTupleLocation(location)) {
                   lng = Number(location[0])
                   lat = Number(location[1])
                 } else {

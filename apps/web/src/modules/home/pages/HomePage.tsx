@@ -1,9 +1,20 @@
 import { Button, Card, Col, Row, Space, Typography } from 'antd'
+import { useNavigate } from 'react-router-dom'
 import { SupabaseConnectionTest } from '../../../components/SupabaseConnectionTest'
 
 const { Title, Paragraph, Text } = Typography
 
 const HomePage = () => {
+  const navigate = useNavigate()
+
+  const handleStartPlanning = () => {
+    navigate('/planner')
+  }
+
+  const handleImportTrip = () => {
+    navigate('/planner')
+  }
+
   return (
     <div className="page-container">
       <Row gutter={[24, 24]}>
@@ -18,8 +29,12 @@ const HomePage = () => {
                 通过语音或文字描述旅行需求，系统将利用 DeepSeek 大模型与高德地图，自动生成个性化行程及预算方案。
               </Paragraph>
               <Space size="middle">
-                <Button type="primary" size="large">开始规划</Button>
-                <Button size="large">导入现有行程</Button>
+                <Button type="primary" size="large" onClick={handleStartPlanning}>
+                  开始规划
+                </Button>
+                <Button size="large" onClick={handleImportTrip}>
+                  导入现有行程
+                </Button>
               </Space>
             </Space>
           </Card>
