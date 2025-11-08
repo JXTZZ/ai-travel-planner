@@ -377,3 +377,20 @@ export const reorderTripActivities = async (
     throw new Error(`更新活动排序失败: ${failed.error.message}`)
   }
 }
+
+/**
+ * 更新行程预算
+ */
+export const updateTripBudget = async (tripId: string, budgetTotal: number, budgetCurrency: string = 'CNY'): Promise<void> => {
+  const { error } = await supabase
+    .from('trips')
+    .update({
+      budget_total: budgetTotal,
+      budget_currency: budgetCurrency,
+    })
+    .eq('id', tripId)
+
+  if (error) {
+    throw new Error(`更新预算失败: ${error.message}`)
+  }
+}

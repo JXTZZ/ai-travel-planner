@@ -13,6 +13,8 @@ const fetchTrips = async (): Promise<TripSummary[]> => {
       destination: trip.destination ?? undefined,
       startDate: trip.start_date ?? undefined,
       endDate: trip.end_date ?? undefined,
+      budget_total: trip.budget_total ?? null,
+      budget_currency: trip.budget_currency ?? 'CNY',
     }))
   } catch (error) {
     console.error('[useTripsQuery] Failed to fetch trips:', error)
