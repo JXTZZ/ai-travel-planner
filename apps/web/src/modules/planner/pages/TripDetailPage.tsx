@@ -423,7 +423,9 @@ const TripDetailPage = () => {
         message.error('AI 未返回有效内容')
       }
     } catch (err) {
-      console.error('AI generation error:', err)
+      if (import.meta.env.DEV) {
+        console.error('AI generation error:', err)
+      }
       message.error(err instanceof Error ? err.message : '生成失败，请重试')
     } finally {
       setAiGenerating(false)

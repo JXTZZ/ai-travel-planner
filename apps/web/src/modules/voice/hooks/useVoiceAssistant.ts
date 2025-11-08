@@ -9,6 +9,15 @@ type VoiceTranscript = {
 }
 
 const isBrowser = typeof window !== 'undefined'
+const isDev = import.meta.env.DEV
+
+// 开发环境日志工具
+const devLog = (...args: unknown[]) => {
+  if (isDev) console.log(...args)
+}
+const devWarn = (...args: unknown[]) => {
+  if (isDev) console.warn(...args)
+}
 
 export const useVoiceAssistant = (onTranscript?: (text: string) => void) => {
   const [status, setStatus] = useState<VoiceAssistantStatus>('idle')
@@ -54,10 +63,10 @@ export const useVoiceAssistant = (onTranscript?: (text: string) => void) => {
   }, [cleanupRecorder])
 
   const processRecording = useCallback(async () => {
-    console.log('[voice] processRecording start, audioChunks count:', audioChunksRef.current.length)
+    devLog('[voice] processRecording start, audioChunks count:', audioChunksRef.current.length)
     if (!mountedRef.current) return
     if (audioChunksRef.current.length === 0) {
-      console.warn('[voice] no audio chunks to process')
+      devWarn('[voice] no audio chunks to process')
       setStatus('idle')
       return
     }
@@ -65,30 +74,30 @@ export const useVoiceAssistant = (onTranscript?: (text: string) => void) => {
     setStatus('processing')
 
     try {
-      console.log('[voice] creating audio blob')
+      devLog('[voice] creating audio blob')
       const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
-      console.log('[voice] blob size:', blob.size)
+      devLog('[voice] blob size:', blob.size)
       
       // 检查音频大小，太小可能无法识别
       if (blob.size < 4000) {
-        console.warn('[voice] audio too short, blob size:', blob.size)
+        devWarn('[voice] audio too short, blob size:', blob.size)
         throw new Error('录音时间太短，请至少录音 2-3 秒并清晰说出您的需求')
       }
       
       const arrayBuffer = await blob.arrayBuffer()
-      console.log('[voice] arrayBuffer size:', arrayBuffer.byteLength)
+      devLog('[voice] arrayBuffer size:', arrayBuffer.byteLength)
       
-      console.log('[voice] converting to PCM16 base64...')
+      devLog('[voice] converting to PCM16 base64...')
       const pcmBase64 = await convertToPcm16Base64(arrayBuffer)
-      console.log('[voice] PCM base64 length:', pcmBase64.length)
+      devLog('[voice] PCM base64 length:', pcmBase64.length)
       
-      console.log('[voice] fetching speech signature...')
+      devLog('[voice] fetching speech signature...')
       const signature = await fetchSpeechSignature()
-      console.log('[voice] signature received:', { appId: signature.appId, host: signature.host })
+      devLog('[voice] signature received:', { appId: signature.appId, host: signature.host })
       
-      console.log('[voice] sending to iFlyTek...')
+      devLog('[voice] sending to iFlyTek...')
       const result = await sendAudioToIFlyTek(signature, pcmBase64)
-      console.log('[voice] recognition result:', result)
+      devLog('[voice] recognition result:', result)
 
       if (!result || result.trim().length === 0) {
         throw new Error('未识别到有效语音，请确保在安静环境下清晰说话')
@@ -111,7 +120,7 @@ export const useVoiceAssistant = (onTranscript?: (text: string) => void) => {
   }, [onTranscript])
 
   const startRecording = useCallback(async () => {
-    console.log('[voice] startRecording called')
+    devLog('[voice] startRecording called')
     if (!isBrowser) {
       setError('当前环境不支持录音功能')
       setStatus('error')
@@ -125,28 +134,28 @@ export const useVoiceAssistant = (onTranscript?: (text: string) => void) => {
     }
 
     try {
-      console.log('[voice] requesting microphone access...')
+      devLog('[voice] requesting microphone access...')
       setError(null)
       const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1 } })
-      console.log('[voice] microphone access granted')
+      devLog('[voice] microphone access granted')
       mediaStreamRef.current = stream
       audioChunksRef.current = []
 
-      console.log('[voice] initializing MediaRecorder...')
+      devLog('[voice] initializing MediaRecorder...')
       const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' })
       mediaRecorderRef.current = recorder
 
       recorder.addEventListener('dataavailable', handleDataAvailable as EventListener)
       recorder.addEventListener('error', handleRecorderError as EventListener)
       recorder.addEventListener('stop', () => {
-        console.log('[voice] recorder stopped, processing...')
+        devLog('[voice] recorder stopped, processing...')
         processRecording().finally(cleanupRecorder)
       })
 
-      console.log('[voice] starting recorder...')
+      devLog('[voice] starting recorder...')
       recorder.start()
       setStatus('recording')
-      console.log('[voice] recording started')
+      devLog('[voice] recording started')
     } catch (recorderError) {
       console.error('[voice] recorder init failed', recorderError)
       setError(recorderError instanceof Error ? recorderError.message : '无法访问麦克风')
@@ -266,7 +275,7 @@ type IFlyTekMessage = {
 }
 
 const sendAudioToIFlyTek = (signature: SpeechSignatureResponse, audioBase64: string) => {
-  console.log('[voice] sendAudioToIFlyTek start, audio length:', audioBase64.length)
+  devLog('[voice] sendAudioToIFlyTek start, audio length:', audioBase64.length)
   return new Promise<string>((resolve, reject) => {
     const { host, path, authorization, date, appId } = signature
     
@@ -277,7 +286,7 @@ const sendAudioToIFlyTek = (signature: SpeechSignatureResponse, audioBase64: str
       host: host,
     })
     const url = `wss://${host}${path}?${params.toString()}`
-    console.log('[voice] connecting to WebSocket:', url)
+    devLog('[voice] connecting to WebSocket:', url)
 
     let aggregatedText = ''
     let settled = false
@@ -285,7 +294,7 @@ const sendAudioToIFlyTek = (signature: SpeechSignatureResponse, audioBase64: str
     const socket = new WebSocket(url)
 
     socket.onopen = () => {
-      console.log('[voice] WebSocket connected')
+      devLog('[voice] WebSocket connected')
       const basePayload = {
         common: { app_id: appId },
         business: {
@@ -299,7 +308,7 @@ const sendAudioToIFlyTek = (signature: SpeechSignatureResponse, audioBase64: str
       // 分帧发送音频数据，每帧最大 8KB
       const CHUNK_SIZE = 8192 // 8KB per frame
       const totalFrames = Math.ceil(audioBase64.length / CHUNK_SIZE)
-      console.log(`[voice] splitting audio into ${totalFrames} frames`)
+      devLog(`[voice] splitting audio into ${totalFrames} frames`)
 
       for (let i = 0; i < totalFrames; i++) {
         const start = i * CHUNK_SIZE
@@ -319,7 +328,7 @@ const sendAudioToIFlyTek = (signature: SpeechSignatureResponse, audioBase64: str
           status = 1 // 中间帧
         }
 
-        console.log(`[voice] sending frame ${i + 1}/${totalFrames}, status: ${status}, chunk size: ${chunk.length}`)
+        devLog(`[voice] sending frame ${i + 1}/${totalFrames}, status: ${status}, chunk size: ${chunk.length}`)
         
         socket.send(
           JSON.stringify({
@@ -336,7 +345,7 @@ const sendAudioToIFlyTek = (signature: SpeechSignatureResponse, audioBase64: str
     }
 
     socket.onmessage = (event) => {
-      console.log('[voice] received message:', event.data)
+      devLog('[voice] received message:', event.data)
       try {
         const response = JSON.parse(event.data) as IFlyTekMessage
         if (response.code !== 0) {
@@ -348,12 +357,12 @@ const sendAudioToIFlyTek = (signature: SpeechSignatureResponse, audioBase64: str
           const text = response.data.result.ws
             .map((item) => item.cw.map((word) => word.w).join(''))
             .join('')
-          console.log('[voice] partial result:', text)
+          devLog('[voice] partial result:', text)
           aggregatedText += text
         }
 
         if (response.data?.status === 2) {
-          console.log('[voice] recognition complete, final text:', aggregatedText)
+          devLog('[voice] recognition complete, final text:', aggregatedText)
           settled = true
           resolve(aggregatedText.trim())
           socket.close()
@@ -375,7 +384,7 @@ const sendAudioToIFlyTek = (signature: SpeechSignatureResponse, audioBase64: str
     }
 
     socket.onclose = (event) => {
-      console.log('[voice] WebSocket closed, code:', event.code, 'reason:', event.reason)
+      devLog('[voice] WebSocket closed, code:', event.code, 'reason:', event.reason)
       if (!settled && event.code !== 1000) {
         reject(new Error(event.reason || '语音识别连接被关闭'))
       }

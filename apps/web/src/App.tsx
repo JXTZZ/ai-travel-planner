@@ -1,11 +1,14 @@
 import { AuthProvider } from './contexts/AuthContext'
 import { AppRoutes } from './routes'
+import { ErrorBoundary } from './components/ErrorBoundary'
 
 const App = () => {
   return (
-    <AuthProvider>
-      <AppRoutes />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </ErrorBoundary>
   )
 }
 
