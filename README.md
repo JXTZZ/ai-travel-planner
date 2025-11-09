@@ -13,7 +13,7 @@
 
 **Windows PowerShell**:
 ```powershell
-# 1. 导入镜像
+# 1. 导入镜像(位置在apps/web下)
 docker load -i lotus-ai-travel-planner-v1.0.0.tar
 
 # 2. 启动应用
