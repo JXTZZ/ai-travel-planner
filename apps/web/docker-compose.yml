@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # 从 .env.docker 文件读取构建参数
+        - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
+        - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
+        - VITE_AMAP_WEB_KEY=${VITE_AMAP_WEB_KEY}
+        - VITE_IFLYTEK_APP_ID=${VITE_IFLYTEK_APP_ID}
+    
+    image: lotus-ai-travel-planner:latest
+    container_name: lotus-web
+    
+    ports:
+      - "80:80"
+    
+    restart: unless-stopped
+    
+    # 健康检查配置
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    
+    # 日志配置
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    # 网络配置
+    networks:
+      - lotus-network
+
+networks:
+  lotus-network:
+    driver: bridge

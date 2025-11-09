@@ -2,6 +2,44 @@
 
 一个基于 React + Supabase 的 AI 旅行规划 Web 应用。项目核心目标：整合 DeepSeek 大模型、科大讯飞语音识别、高德地图，实现端到端的个性化行程规划与实时辅助。
 
+---
+
+## 🐳 Docker 一键部署 (推荐)
+
+### 📥 获取镜像文件
+下载 `lotus-ai-travel-planner-v1.0.0.tar` (20MB)
+
+### 🚀 在任意电脑上运行 (仅需 2 步)
+
+**Windows PowerShell**:
+```powershell
+# 1. 导入镜像
+docker load -i lotus-ai-travel-planner-v1.0.0.tar
+
+# 2. 启动应用
+docker run -d --name lotus-web -p 80:80 --restart unless-stopped lotus-ai-travel-planner:latest
+
+# 3. 访问应用
+start http://localhost
+```
+
+**macOS / Linux**:
+```bash
+# 1. 导入镜像
+docker load -i lotus-ai-travel-planner-v1.0.0.tar
+
+# 2. 启动应用
+docker run -d --name lotus-web -p 80:80 --restart unless-stopped lotus-ai-travel-planner:latest
+
+# 3. 访问应用 (浏览器打开 http://localhost)
+```
+
+### 📦 详细文档
+- **部署指南**: [apps/web/DEPLOYMENT_GUIDE.md](./apps/web/DEPLOYMENT_GUIDE.md) - 完整使用说明
+- **技术文档**: [docs/DOCKER_DEPLOYMENT.md](./docs/DOCKER_DEPLOYMENT.md) - 开发者参考
+
+---
+
 ## 开发快照
 - 前端框架：React + TypeScript + Vite (`apps/web`)
 - 后端服务：Supabase（Auth、Database、Storage、Edge Functions）
@@ -83,7 +121,7 @@ ai-travel-planner/
 - [x] 集成 Supabase 初始 schema（迁移脚本与 RLS）
 - [x] 搭建 Edge Functions 基础骨架（行程规划、语音签名、预算聚合）
 - [x] 构建地图、语音、预算模块
-- [ ] 配置 Docker & GitHub Actions 部署流程
+- [x] 配置 Docker & GitHub Actions 部署流程
 
 ---
 
