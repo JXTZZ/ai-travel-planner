@@ -88,8 +88,10 @@ cp .env.docker.example .env.docker
 VITE_SUPABASE_URL=https://zhugdvqgkqpmxhixtqaj.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
-# 高德地图 Web Key
+# 高德地图 Key
 VITE_AMAP_WEB_KEY=fc717be5312dd2e0ca800dce62d1d32b
+VITE_AMAP_SECURITY_JS_CODE=511811d592c5d52d52ecf5f896b2d6a5
+VITE_AMAP_REST_KEY=2c7a7549e3f5d81ac24e9afab04fcac9
 
 # 讯飞语音 App ID
 VITE_IFLYTEK_APP_ID=b4ed3cfd
@@ -146,6 +148,8 @@ docker build \
   --build-arg VITE_SUPABASE_URL=https://zhugdvqgkqpmxhixtqaj.supabase.co \
   --build-arg VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9... \
   --build-arg VITE_AMAP_WEB_KEY=fc717be5312dd2e0ca800dce62d1d32b \
+  --build-arg VITE_AMAP_SECURITY_JS_CODE=511811d592c5d52d52ecf5f896b2d6a5 \
+  --build-arg VITE_AMAP_REST_KEY=2c7a7549e3f5d81ac24e9afab04fcac9 \
   --build-arg VITE_IFLYTEK_APP_ID=b4ed3cfd \
   -t lotus-ai-travel-planner:1.0.0 \
   .
@@ -192,6 +196,8 @@ docker build \
   --build-arg VITE_SUPABASE_URL=https://zhugdvqgkqpmxhixtqaj.supabase.co \
   --build-arg VITE_SUPABASE_ANON_KEY=eyJ... \
   --build-arg VITE_AMAP_WEB_KEY=fc717be... \
+  --build-arg VITE_AMAP_SECURITY_JS_CODE=511811d5... \
+  --build-arg VITE_AMAP_REST_KEY=2c7a7549... \
   --build-arg VITE_IFLYTEK_APP_ID=b4ed3cfd \
   -t lotus-ai-travel-planner:1.0.0 \
   .
@@ -254,6 +260,8 @@ docker run -d -p 80:80 yourusername/lotus-ai-travel-planner:1.0.0
 | `VITE_SUPABASE_URL` | Supabase 项目 URL | ✅ | `https://xxx.supabase.co` |
 | `VITE_SUPABASE_ANON_KEY` | Supabase 匿名公钥(安全) | ✅ | `eyJhbGciOiJIUzI1NiI...` |
 | `VITE_AMAP_WEB_KEY` | 高德地图 Web 服务 Key | ✅ | `fc717be5312dd2e0ca8...` |
+| `VITE_AMAP_SECURITY_JS_CODE` | 高德 JS 安全密钥(启用 Web 安全必填) | ⚠️ | `511811d592c5d52d52...` |
+| `VITE_AMAP_REST_KEY` | 高德 Web Service REST Key(地理编码等功能必填) | ✅ | `2c7a7549e3f5d81ac2...` |
 | `VITE_IFLYTEK_APP_ID` | 讯飞开放平台 App ID | ✅ | `b4ed3cfd` |
 
 ### 后端环境变量(仅 Edge Functions)
@@ -266,7 +274,7 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...  # 服务端高权限密钥
 DEEPSEEK_API_KEY=sk-...           # DeepSeek AI API 密钥
 IFLYTEK_API_KEY=0ecc422c...       # 讯飞 API 密钥
 IFLYTEK_API_SECRET=NGUxNTNk...    # 讯飞 API 密钥
-AMAP_REST_API_KEY=fc717be5...     # 高德地图服务端 Key
+AMAP_REST_API_KEY=fc717be5...     # 高德地图服务端 Key(Edge Functions 使用,建议与前端 Key 区分或限制权限)
 ```
 
 ### 安全注意事项
@@ -371,7 +379,28 @@ curl https://zhugdvqgkqpmxhixtqaj.supabase.co/rest/v1/
 
 ---
 
-### 问题3: 构建失败 - 依赖安装错误
+### 问题3: 地图无法显示或提示缺少 REST API Key
+
+**症状**: 页面显示“缺少高德地图 Key”或地图组件空白。
+
+**排查步骤**:
+
+```bash
+# 1. 确认容器内嵌入了 REST Key
+docker exec lotus-web grep -n "VITE_AMAP_REST_KEY" /usr/share/nginx/html/assets/index-*.js
+
+# 2. 检查 .env.docker 是否填写
+grep VITE_AMAP_REST_KEY .env.docker
+```
+
+**解决方法**:
+- 确认 `.env.docker` 填写了 `VITE_AMAP_REST_KEY`
+- 若启用了高德安全设置,同步填写 `VITE_AMAP_SECURITY_JS_CODE`
+- 重新构建镜像: `docker-compose --env-file .env.docker up -d --build`
+
+---
+
+### 问题4: 构建失败 - 依赖安装错误
 
 **症状**: `npm ERR! peer dependency`
 
@@ -384,7 +413,7 @@ RUN npm ci --legacy-peer-deps
 
 ---
 
-### 问题4: 镜像体积过大
+### 问题5: 镜像体积过大
 
 **症状**: 构建的镜像超过 500MB
 
@@ -501,6 +530,7 @@ docker-compose build --no-cache
 - ✅ Nginx 配置(SPA 路由支持)
 - ✅ Docker Compose 编排
 - ✅ 健康检查配置
+- ✅ 新增高德地图 REST Key / JS 安全密钥配置说明
 
 ---
 

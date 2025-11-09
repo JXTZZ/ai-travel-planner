@@ -7,10 +7,12 @@ services:
       dockerfile: Dockerfile
       args:
         # 从 .env.docker 文件读取构建参数
-        - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
-        - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
-        - VITE_AMAP_WEB_KEY=${VITE_AMAP_WEB_KEY}
-        - VITE_IFLYTEK_APP_ID=${VITE_IFLYTEK_APP_ID}
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
+        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY}
+        VITE_AMAP_WEB_KEY: ${VITE_AMAP_WEB_KEY}
+        VITE_AMAP_SECURITY_JS_CODE: ${VITE_AMAP_SECURITY_JS_CODE}
+        VITE_AMAP_REST_KEY: ${VITE_AMAP_REST_KEY}
+        VITE_IFLYTEK_APP_ID: ${VITE_IFLYTEK_APP_ID}
     
     image: lotus-ai-travel-planner:latest
     container_name: lotus-web

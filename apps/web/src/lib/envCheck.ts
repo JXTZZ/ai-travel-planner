@@ -26,6 +26,16 @@ const ENV_VARS: EnvConfig[] = [
     description: '高德地图 Web 服务密钥（地图功能需要）',
   },
   {
+    key: 'VITE_AMAP_SECURITY_JS_CODE',
+    required: false,
+    description: '高德地图 JS 安全密钥（启用 Web 安全时需要）',
+  },
+  {
+    key: 'VITE_AMAP_REST_KEY',
+    required: false,
+    description: '高德地图 REST 服务密钥（地理编码等功能需要）',
+  },
+  {
     key: 'VITE_IFLYTEK_APP_ID',
     required: false,
     description: '科大讯飞应用 ID（语音功能需要）',

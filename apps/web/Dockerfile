@@ -20,12 +20,23 @@ COPY . .
 ARG VITE_SUPABASE_URL
 ARG VITE_SUPABASE_ANON_KEY
 ARG VITE_AMAP_WEB_KEY
+ARG VITE_AMAP_SECURITY_JS_CODE
+ARG VITE_AMAP_REST_KEY
 ARG VITE_IFLYTEK_APP_ID
+
+# 基本校验: 如果必需变量缺失,直接终止构建
+RUN test -n "$VITE_SUPABASE_URL" \
+ && test -n "$VITE_SUPABASE_ANON_KEY" \
+ && test -n "$VITE_AMAP_WEB_KEY" \
+ && test -n "$VITE_AMAP_REST_KEY" \
+ || (echo "Missing required build arguments. Please verify Docker build args." && exit 1)
 
 # 生成构建时环境文件
 RUN echo "VITE_SUPABASE_URL=${VITE_SUPABASE_URL}" > .env.production && \
     echo "VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}" >> .env.production && \
     echo "VITE_AMAP_WEB_KEY=${VITE_AMAP_WEB_KEY}" >> .env.production && \
+  echo "VITE_AMAP_SECURITY_JS_CODE=${VITE_AMAP_SECURITY_JS_CODE}" >> .env.production && \
+  echo "VITE_AMAP_REST_KEY=${VITE_AMAP_REST_KEY}" >> .env.production && \
     echo "VITE_IFLYTEK_APP_ID=${VITE_IFLYTEK_APP_ID}" >> .env.production
 
 # 执行构建
